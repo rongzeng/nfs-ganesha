@@ -1186,6 +1186,7 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
   fsal_accessflags_t access_mask = 0;
   uint64_t inoff = cookie;
   int i = 0;
+  cache_inode_status_t status;
 
   /* Guide to parameters:
    * the first cookie is parameter 'cookie'
@@ -1250,11 +1251,14 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
   P_w(&dir_pentry->lock);
 
   /* Renew the entry (to avoid having it being garbagged */
-  if(cache_inode_renew_entry(dir_pentry, NULL, ht, pclient, pcontext,
-			     pstatus) != CACHE_INODE_SUCCESS)
+  status = cache_inode_renew_entry(dir_pentry, WT_LOCK, NULL, ht, pclient, pcontext,
+                             pstatus);
+  if(status != CACHE_INODE_SUCCESS)
     {
       (pclient->stat.func_stats.nb_err_retryable[CACHE_INODE_GETATTR])++;
-      V_w(&dir_pentry->lock);
+      /* if cache_inode_kill_entry is invoked, status could be these two, lock is released by free_lock */
+      if((status != CACHE_INODE_FSAL_ESTALE) && (status != CACHE_INODE_KILLED))
+        V_w(&dir_pentry->lock);
       return *pstatus;
     }
 
@@ -1409,7 +1413,7 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
   if (! dirent_node)
       *peod_met = END_OF_DIR;
 
-  *pstatus = cache_inode_valid(dir_pentry, CACHE_INODE_OP_GET, pclient);
+  *pstatus = cache_inode_valid(dir_pentry, FALSE, CACHE_INODE_OP_GET, pclient);
 
   /* stats */
   if(*pstatus != CACHE_INODE_SUCCESS) {

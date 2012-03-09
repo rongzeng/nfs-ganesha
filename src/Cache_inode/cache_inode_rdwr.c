@@ -511,7 +511,7 @@ cache_inode_status_t cache_inode_rdwr(cache_entry_t * pentry,
   /* stat */
   if(read_or_write == CACHE_INODE_READ)
     {
-      *pstatus = cache_inode_valid(pentry, CACHE_INODE_OP_GET, pclient);
+      *pstatus = cache_inode_valid(pentry, TRUE, CACHE_INODE_OP_GET, pclient);
 
       if(*pstatus != CACHE_INODE_SUCCESS)
         pclient->stat.func_stats.nb_err_unrecover[CACHE_INODE_READ] += 1;
@@ -520,7 +520,7 @@ cache_inode_status_t cache_inode_rdwr(cache_entry_t * pentry,
     }
   else
     {
-      *pstatus = cache_inode_valid(pentry, CACHE_INODE_OP_SET, pclient);
+      *pstatus = cache_inode_valid(pentry, TRUE, CACHE_INODE_OP_SET, pclient);
 
       if(*pstatus != CACHE_INODE_SUCCESS)
         pclient->stat.func_stats.nb_err_unrecover[CACHE_INODE_WRITE] += 1;

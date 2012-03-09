@@ -62,6 +62,7 @@ cache_inode_status_t cache_inode_readlink(cache_entry_t * pentry, fsal_path_t * 
 {
   fsal_status_t fsal_status;
   fsal_attrib_list_t attr ;
+  cache_inode_status_t cache_status;
 
   /* Set the return default to CACHE_INODE_SUCCESS */
   *pstatus = CACHE_INODE_SUCCESS;
@@ -72,11 +73,13 @@ cache_inode_status_t cache_inode_readlink(cache_entry_t * pentry, fsal_path_t * 
 
   /* Lock the entry */
   P_w(&pentry->lock);
-  if(cache_inode_renew_entry(pentry, NULL, ht, pclient, pcontext, pstatus) !=
-     CACHE_INODE_SUCCESS)
+  cache_status = cache_inode_renew_entry(pentry, WT_LOCK, NULL, ht, pclient, pcontext, pstatus);
+  if(cache_status != CACHE_INODE_SUCCESS)
     {
       (pclient->stat.func_stats.nb_err_retryable[CACHE_INODE_READLINK])++;
-      V_w(&pentry->lock);
+      /* if cache_inode_kill_entry is invoked, status could be these two, lock is released by free_lock */
+      if((cache_status != CACHE_INODE_FSAL_ESTALE) && (cache_status != CACHE_INODE_KILLED))
+        V_w(&pentry->lock);
       return *pstatus;
     }
   /* RW_Lock obtained as writer turns to reader */
@@ -145,7 +148,7 @@ cache_inode_status_t cache_inode_readlink(cache_entry_t * pentry, fsal_path_t * 
     }
 
   /* Release the entry */
-  *pstatus = cache_inode_valid(pentry, CACHE_INODE_OP_GET, pclient);
+  *pstatus = cache_inode_valid(pentry, FALSE, CACHE_INODE_OP_GET, pclient);
   V_r(&pentry->lock);
 
   /* stat */

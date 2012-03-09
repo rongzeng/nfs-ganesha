@@ -60,6 +60,7 @@
 /* Function to test if numlinks == 0 and to clean up that inode entry
  * if there is no state or locks on that inode. */
 static cache_inode_status_t isNumlinksZero(cache_entry_t *pentry,
+                                           cache_inode_lock_how_t lock_how,
                                            cache_inode_client_t *pclient,
                                            hash_table_t *ht,
                                            fsal_attrib_list_t *object_attributes);
@@ -82,6 +83,7 @@ static cache_inode_status_t isNumlinksZero(cache_entry_t *pentry,
  *
  */
 cache_inode_status_t cache_inode_renew_entry(cache_entry_t * pentry,
+                                             cache_inode_lock_how_t lock_how,
                                              fsal_attrib_list_t * pattr,
                                              hash_table_t * ht,
                                              cache_inode_client_t * pclient,
@@ -214,7 +216,7 @@ cache_inode_status_t cache_inode_renew_entry(cache_entry_t * pentry,
                        "cache_inode_renew_entry: Stale FSAL File Handle detected for pentry = %p, line %u, fsal_status=(%u,%u)",
                        pentry, __LINE__, fsal_status.major, fsal_status.minor);
 
-              if(cache_inode_kill_entry(pentry, NO_LOCK, ht, pclient, &kill_status) !=
+              if(cache_inode_kill_entry(pentry, lock_how, ht, pclient, &kill_status) !=
                  CACHE_INODE_SUCCESS)
                 LogCrit(COMPONENT_CACHE_INODE,
                         "cache_inode_renew_entry: Could not kill entry %p, status = %u",
@@ -232,7 +234,7 @@ cache_inode_status_t cache_inode_renew_entry(cache_entry_t * pentry,
         }
 
       /* A directory could be removed by something other than Ganesha. */
-      lstatus = isNumlinksZero(pentry, pclient, ht, &object_attributes);
+      lstatus = isNumlinksZero(pentry, lock_how, pclient, ht, &object_attributes);
       if (lstatus != CACHE_INODE_SUCCESS)
         {
           if (lstatus != CACHE_INODE_KILLED)
@@ -347,7 +349,7 @@ cache_inode_status_t cache_inode_renew_entry(cache_entry_t * pentry,
                            "cache_inode_renew_entry: Stale FSAL File Handle detected for pentry = %p, line %u, fsal_status=(%u,%u)",
                            pentry, __LINE__,fsal_status.major, fsal_status.minor );
 
-                  if(cache_inode_kill_entry(pentry, NO_LOCK, ht, pclient, &kill_status) !=
+                  if(cache_inode_kill_entry(pentry, lock_how, ht, pclient, &kill_status) !=
                      CACHE_INODE_SUCCESS)
                     LogCrit(COMPONENT_CACHE_INODE,
                             "cache_inode_renew_entry: Could not kill entry %p, status = %u",
@@ -364,7 +366,7 @@ cache_inode_status_t cache_inode_renew_entry(cache_entry_t * pentry,
         }
 
       /* A directory could be removed by something other than Ganesha. */
-      lstatus = isNumlinksZero(pentry, pclient, ht, &object_attributes);
+      lstatus = isNumlinksZero(pentry, lock_how, pclient, ht, &object_attributes);
       if (lstatus != CACHE_INODE_SUCCESS)
         {
           if (lstatus != CACHE_INODE_KILLED)
@@ -457,7 +459,7 @@ cache_inode_status_t cache_inode_renew_entry(cache_entry_t * pentry,
                        "cache_inode_renew_entry: Stale FSAL File Handle detected for pentry = %p, line %u, fsal_status=(%u,%u)",
                        pentry, __LINE__,fsal_status.major, fsal_status.minor );
 
-              if(cache_inode_kill_entry(pentry, NO_LOCK, ht, pclient, &kill_status) !=
+              if(cache_inode_kill_entry(pentry, lock_how, ht, pclient, &kill_status) !=
                  CACHE_INODE_SUCCESS)
                 LogCrit(COMPONENT_CACHE_INODE,
                         "cache_inode_renew_entry: Could not kill entry %p, status = %u",
@@ -473,7 +475,7 @@ cache_inode_status_t cache_inode_renew_entry(cache_entry_t * pentry,
         }
 
       /* A directory could be removed by something other than Ganesha. */
-      lstatus = isNumlinksZero(pentry, pclient, ht, &object_attributes);
+      lstatus = isNumlinksZero(pentry, lock_how, pclient, ht, &object_attributes);
       if (lstatus != CACHE_INODE_SUCCESS)
         {
           if (lstatus != CACHE_INODE_KILLED)
@@ -555,7 +557,7 @@ cache_inode_status_t cache_inode_renew_entry(cache_entry_t * pentry,
                        "cache_inode_renew_entry: Stale FSAL File Handle detected for pentry = %p, line %u, fsal_status=(%u,%u)",
                        pentry, __LINE__,fsal_status.major, fsal_status.minor );
 
-              if(cache_inode_kill_entry(pentry, NO_LOCK, ht, pclient, &kill_status) !=
+              if(cache_inode_kill_entry(pentry, lock_how, ht, pclient, &kill_status) !=
                  CACHE_INODE_SUCCESS)
                 LogCrit(COMPONENT_CACHE_INODE,
                         "cache_inode_renew_entry: Could not kill entry %p, status = %u",
@@ -573,7 +575,7 @@ cache_inode_status_t cache_inode_renew_entry(cache_entry_t * pentry,
       /* Check if the file was deleted by something other than Ganesha.
        * If Ganesha has open fd, then numlinks=0 but we still see the file. */
 
-      lstatus = isNumlinksZero(pentry, pclient, ht, &object_attributes);
+      lstatus = isNumlinksZero(pentry, lock_how, pclient, ht, &object_attributes);
       if (lstatus != CACHE_INODE_SUCCESS)
         {
           if (lstatus != CACHE_INODE_KILLED)
@@ -651,7 +653,7 @@ cache_inode_status_t cache_inode_renew_entry(cache_entry_t * pentry,
                        "cache_inode_renew_entry: Stale FSAL File Handle detected for pentry = %p, line %u, fsal_status=(%u,%u)",
                        pentry, __LINE__,fsal_status.major, fsal_status.minor );
 
-              if(cache_inode_kill_entry(pentry, NO_LOCK, ht, pclient, &kill_status) !=
+              if(cache_inode_kill_entry(pentry, lock_how, ht, pclient, &kill_status) !=
                  CACHE_INODE_SUCCESS)
                 LogCrit(COMPONENT_CACHE_INODE,
                        "cache_inode_renew_entry: Could not kill entry %p, status = %u",
@@ -695,6 +697,7 @@ cache_inode_status_t cache_inode_renew_entry(cache_entry_t * pentry,
 
 
 static cache_inode_status_t isNumlinksZero(cache_entry_t *pentry,
+                                           cache_inode_lock_how_t lock_how,
                                            cache_inode_client_t *pclient,
                                            hash_table_t *ht,
                                            fsal_attrib_list_t *object_attributes)
@@ -727,7 +730,7 @@ static cache_inode_status_t isNumlinksZero(cache_entry_t *pentry,
                   pentry, kill_status);
 
       pentry->internal_md.valid_state = STALE;
-      if(cache_inode_kill_entry(pentry, NO_LOCK, ht, pclient, &kill_status) ==
+      if(cache_inode_kill_entry(pentry, lock_how, ht, pclient, &kill_status) ==
          CACHE_INODE_SUCCESS)
         {
           LogCrit(COMPONENT_CACHE_INODE,

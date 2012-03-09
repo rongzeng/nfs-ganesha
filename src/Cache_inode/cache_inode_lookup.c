@@ -128,11 +128,13 @@ cache_entry_t *cache_inode_lookup_sw(cache_entry_t        * pentry_parent,
   if(use_mutex == TRUE) {
       P_w(&pentry_parent->lock);
 
-      cache_status = cache_inode_renew_entry(pentry_parent, pattr, ht,
+      cache_status = cache_inode_renew_entry(pentry_parent, WT_LOCK, pattr, ht,
                                              pclient, pcontext, pstatus);
       if(cache_status != CACHE_INODE_SUCCESS)
       {
-          V_w(&pentry_parent->lock);
+          /* if cache_inode_kill_entry is invoked, status could be these two, lock is released by free_lock */
+          if((cache_status != CACHE_INODE_FSAL_ESTALE) && (cache_status != CACHE_INODE_KILLED))
+            V_w(&pentry_parent->lock);
           inc_func_err_retryable(pclient, CACHE_INODE_GETATTR);
           LogDebug(COMPONENT_CACHE_INODE,
                        "cache_inode_lookup: returning %d(%s) from cache_inode_renew_entry",
@@ -394,7 +396,7 @@ cache_entry_t *cache_inode_lookup_sw(cache_entry_t        * pentry_parent,
   /* Return the attributes */
   *pattr = pentry->attributes;
 
-  *pstatus = cache_inode_valid(pentry_parent, CACHE_INODE_OP_GET, pclient);
+  *pstatus = cache_inode_valid(pentry_parent, FALSE, CACHE_INODE_OP_GET, pclient);
 
   if(use_mutex == TRUE)
     V_r(&pentry_parent->lock);
@@ -528,12 +530,13 @@ cache_entry_t *cache_inode_valid_lookup(cache_entry_t * pentry_parent,
        * unlocking doesn't prevent this problem. It may be that we need to
        * pass to renew_entry the type of lock we have on pentry->lock so that
        * cache_inode_kill_entry() can properly unlock.*/
-      //P_w(&pentry->lock);
-      cache_status = cache_inode_renew_entry(pentry, pattr, ht,
+      P_w(&pentry->lock);
+      cache_status = cache_inode_renew_entry(pentry, WT_LOCK, pattr, ht,
                                              pclient, pcontext, pstatus);
 
-      //if (cache_status != CACHE_INODE_KILLED)
-      //V_w(&pentry->lock);
+      /* if cache_inode_kill_entry is invoked, status could be these two, lock is released by free_lock */
+      if((cache_status != CACHE_INODE_FSAL_ESTALE) && (cache_status != CACHE_INODE_KILLED))
+        V_w(&pentry->lock);
 
       if(cache_status != CACHE_INODE_SUCCESS)
         {

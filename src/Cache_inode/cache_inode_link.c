@@ -251,7 +251,7 @@ cache_inode_status_t cache_inode_link(cache_entry_t * pentry_src,
                        "cache_inode_link: Stale FSAL File Handle detected for pentry = %p",
                        pentry_src);
 
-              if(cache_inode_kill_entry(pentry_src, WT_LOCK, ht, pclient, &kill_status) !=
+              if(cache_inode_kill_entry(pentry_src, NO_LOCK, ht, pclient, &kill_status) !=
                  CACHE_INODE_SUCCESS)
                 LogCrit(COMPONENT_CACHE_INODE,
                         "cache_inode_link: Could not kill entry %p, status = %u",
@@ -265,7 +265,7 @@ cache_inode_status_t cache_inode_link(cache_entry_t * pentry_src,
                        "cache_inode_link: Stale FSAL File Handle detected for pentry = %p",
                        pentry_dir_dest);
 
-              if(cache_inode_kill_entry(pentry_dir_dest, WT_LOCK, ht, pclient, &kill_status) !=
+              if(cache_inode_kill_entry(pentry_dir_dest, NO_LOCK, ht, pclient, &kill_status) !=
                  CACHE_INODE_SUCCESS)
                 LogCrit(COMPONENT_CACHE_INODE,
                         "cache_inode_link: Could not kill entry %p, status = %u",
@@ -311,7 +311,7 @@ cache_inode_status_t cache_inode_link(cache_entry_t * pentry_src,
   *pattr = link_attributes;
 
   /* Validate the entries */
-  *pstatus = cache_inode_valid(pentry_src, CACHE_INODE_OP_SET, pclient);
+  *pstatus = cache_inode_valid(pentry_src, TRUE, CACHE_INODE_OP_SET, pclient);
 
   /* Release the target dir */
   V_w(&pentry_dir_dest->lock);

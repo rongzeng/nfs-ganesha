@@ -106,11 +106,13 @@ cache_inode_getattr(cache_entry_t * pentry,
 
     /* Lock the entry */
     P_w(&pentry->lock);
-    status = cache_inode_renew_entry(pentry, pattr, ht,
+    status = cache_inode_renew_entry(pentry, WT_LOCK, pattr, ht,
                                      pclient, pcontext, pstatus);
     if(status != CACHE_INODE_SUCCESS)
         {
-            V_w(&pentry->lock);
+            /* if cache_inode_kill_entry is invoked, status could be these two, lock is released by free_lock */
+            if((status != CACHE_INODE_FSAL_ESTALE) && (status != CACHE_INODE_KILLED))
+               V_w(&pentry->lock);
             inc_func_err_retryable(pclient, CACHE_INODE_GETATTR);
             LogDebug(COMPONENT_CACHE_INODE,
                          "cache_inode_getattr: returning %d(%s) from cache_inode_renew_entry",
@@ -163,7 +165,7 @@ cache_inode_getattr(cache_entry_t * pentry,
                                      pentry, fsal_status.major, fsal_status.minor);
 
                             /* Locked flag is set to true to show entry has a read lock */
-                            cache_inode_kill_entry( pentry, WT_LOCK, ht,
+                            cache_inode_kill_entry( pentry, NO_LOCK, ht,
                                                     pclient, &kill_status);
                             if(kill_status != CACHE_INODE_SUCCESS)
                                 LogCrit(COMPONENT_CACHE_INODE,
@@ -184,7 +186,7 @@ cache_inode_getattr(cache_entry_t * pentry,
             /* Set the new attributes */
             cache_inode_set_attributes(pentry, pattr);
         }
-    *pstatus = cache_inode_valid(pentry, CACHE_INODE_OP_GET, pclient);
+    *pstatus = cache_inode_valid(pentry, FALSE, CACHE_INODE_OP_GET, pclient);
 
     V_r(&pentry->lock);
 

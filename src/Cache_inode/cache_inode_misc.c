@@ -837,7 +837,7 @@ cache_entry_t *cache_inode_new_entry(cache_inode_fsal_data_t   * pfsdata,
 
   /* Final step */
   P_w(&pentry->lock);
-  *pstatus = cache_inode_valid(pentry, CACHE_INODE_OP_GET, pclient);
+  *pstatus = cache_inode_valid(pentry, TRUE, CACHE_INODE_OP_GET, pclient);
   V_w(&pentry->lock);
 
   LogDebug(COMPONENT_CACHE_INODE,
@@ -1006,6 +1006,7 @@ cache_inode_status_t cache_inode_error_convert(fsal_status_t fsal_status)
  *
  */
 cache_inode_status_t cache_inode_valid(cache_entry_t * pentry,
+                                       unsigned int close_fd,
                                        cache_inode_op_t op,
                                        cache_inode_client_t * pclient)
 {
@@ -1077,7 +1078,7 @@ cache_inode_status_t cache_inode_valid(cache_entry_t * pentry,
                  (unsigned int)pentry->object.file.open_fd.last_op, (unsigned int)time(NULL),
                  (unsigned int)(time(NULL) - pentry->object.file.open_fd.last_op), (unsigned int)pclient->retention);
 
-  if(pentry->internal_md.type == REGULAR_FILE)
+  if((pentry->internal_md.type == REGULAR_FILE) && close_fd)
     {
       if(pclient->use_fd_cache == 1)
         {

@@ -99,7 +99,7 @@ cache_inode_access_sw(cache_entry_t * pentry,
     inc_func_call(pclient, CACHE_INODE_ACCESS);
 
     if(use_mutex)
-        P_r(&pentry->lock);
+        P_w(&pentry->lock);
     /*
      * We do no explicit access test in FSAL for FSAL_F_OK:
      * it is considered that if an entry resides in the cache_inode,
@@ -134,7 +134,7 @@ cache_inode_access_sw(cache_entry_t * pentry,
                     if(pfsal_handle == NULL)
                         {
                             if(use_mutex)
-                                V_r(&pentry->lock);
+                                V_w(&pentry->lock);
                             return *pstatus;
                         }
 #ifdef _USE_MFSL
@@ -161,7 +161,7 @@ cache_inode_access_sw(cache_entry_t * pentry,
                                      pentry, fsal_status.major, fsal_status.minor);
 
                             if( use_mutex )
-                                 cache_inode_kill_entry( pentry, RD_LOCK, ht,
+                                 cache_inode_kill_entry( pentry, WT_LOCK, ht,
                                                          pclient, &kill_status);
                             else
                                  cache_inode_kill_entry( pentry, NO_LOCK, ht,
@@ -184,12 +184,13 @@ cache_inode_access_sw(cache_entry_t * pentry,
     if(*pstatus != CACHE_INODE_SUCCESS)
         {
             if(use_mutex)
-                V_r(&pentry->lock);
+                V_w(&pentry->lock);
 
             return *pstatus;
         }
     /* stats and validation */
     cache_status = cache_inode_valid(pentry,
+                                     TRUE,
                                      CACHE_INODE_OP_GET,
                                      pclient);
     if(cache_status != CACHE_INODE_SUCCESS)
@@ -198,7 +199,7 @@ cache_inode_access_sw(cache_entry_t * pentry,
         inc_func_success(pclient, CACHE_INODE_ACCESS);
 
     if(use_mutex)
-        V_r(&pentry->lock);
+        V_w(&pentry->lock);
 
     return *pstatus;
 }

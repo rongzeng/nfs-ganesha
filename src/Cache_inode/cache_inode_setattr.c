@@ -276,7 +276,7 @@ cache_inode_status_t cache_inode_setattr(cache_entry_t * pentry, fsal_attrib_lis
   *pattr = *p_object_attributes;
 
   /* validate the entry */
-  *pstatus = cache_inode_valid(pentry, CACHE_INODE_OP_SET, pclient);
+  *pstatus = cache_inode_valid(pentry, TRUE, CACHE_INODE_OP_SET, pclient);
 
   /* Release the entry */
   V_w(&pentry->lock);

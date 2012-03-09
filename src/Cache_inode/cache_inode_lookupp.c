@@ -83,6 +83,7 @@ cache_entry_t *cache_inode_lookupp_sw( cache_entry_t * pentry,
   fsal_status_t fsal_status;
   fsal_attrib_list_t object_attributes;
   cache_inode_fsal_data_t fsdata;
+  cache_inode_status_t status;
 
   /* Set the return default to CACHE_INODE_SUCCESS */
   *pstatus = CACHE_INODE_SUCCESS;
@@ -93,11 +94,11 @@ cache_entry_t *cache_inode_lookupp_sw( cache_entry_t * pentry,
 
   /* The entry should be a directory */
   if(use_mutex)
-    P_r(&pentry->lock);
+    P_w(&pentry->lock);
   if(pentry->internal_md.type != DIRECTORY)
     {
       if(use_mutex)
-        V_r(&pentry->lock);
+        V_w(&pentry->lock);
       *pstatus = CACHE_INODE_BAD_TYPE;
 
       /* stats */
@@ -107,9 +108,12 @@ cache_entry_t *cache_inode_lookupp_sw( cache_entry_t * pentry,
     }
 
   /* Renew the entry (to avoid having it being garbagged */
-  if(cache_inode_renew_entry(pentry, NULL, ht, pclient, pcontext, pstatus) !=
-     CACHE_INODE_SUCCESS)
+  status = cache_inode_renew_entry(pentry, WT_LOCK, NULL, ht, pclient, pcontext, pstatus); 
+  if(status != CACHE_INODE_SUCCESS)
     {
+      /* if cache_inode_kill_entry is invoked, status could be these two, lock is released by free_lock */
+      if((status != CACHE_INODE_FSAL_ESTALE) && (status != CACHE_INODE_KILLED))
+        V_w(&pentry->lock);
       (pclient->stat.func_stats.nb_err_retryable[CACHE_INODE_GETATTR])++;
       return NULL;
     }
@@ -132,7 +136,7 @@ cache_entry_t *cache_inode_lookupp_sw( cache_entry_t * pentry,
         {
           *pstatus = cache_inode_error_convert(fsal_status);
           if(use_mutex)
-            V_r(&pentry->lock);
+            V_w(&pentry->lock);
 
           /* Stale File Handle to be detected and managed */
           if(fsal_status.major == ERR_FSAL_STALE)
@@ -171,7 +175,7 @@ cache_entry_t *cache_inode_lookupp_sw( cache_entry_t * pentry,
                                                    pstatus)) == NULL)
         {
           if(use_mutex)
-            V_r(&pentry->lock);
+            V_w(&pentry->lock);
 
           /* stats */
           (pclient->stat.func_stats.nb_err_unrecover[CACHE_INODE_LOOKUPP])++;
@@ -180,9 +184,9 @@ cache_entry_t *cache_inode_lookupp_sw( cache_entry_t * pentry,
         }
     }
 
-  *pstatus = cache_inode_valid(pentry_parent, CACHE_INODE_OP_GET, pclient);
+  *pstatus = cache_inode_valid(pentry_parent, TRUE, CACHE_INODE_OP_GET, pclient);
   if(use_mutex)
-    V_r(&pentry->lock);
+    V_w(&pentry->lock);
 
   /* stat */
   if(*pstatus != CACHE_INODE_SUCCESS)
