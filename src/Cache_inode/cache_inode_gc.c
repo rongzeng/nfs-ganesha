@@ -627,16 +627,21 @@ int cache_inode_gc_fd_func(LRU_entry_t * plru_entry, void *addparam)
 
   /* check if a file descriptor is opened on the file for a long time */
 
-  if((pentry->internal_md.type == REGULAR_FILE)
-     && (pentry->object.file.open_fd.fileno != 0)
-     && (time(NULL) - pentry->object.file.open_fd.last_op > pgcparam->pclient->retention))
-    {
-      P_w(&pentry->lock);
-      cache_inode_close(pentry, pgcparam->pclient, &status);
-      V_w(&pentry->lock);
-
-      pgcparam->nb_to_be_purged--;
-    }
+  /* Right now fd gc is invoked inline, we shouldn't close the fd of the current cache_entry */
+  /* And worse, we cannot try to lock since the lock is held already */
+  /* Also, fileno should be checked within the lock */
+  if (pentry != pgcparam->pentry_skip)
+  {
+    P_w(&pentry->lock);
+    if((pentry->internal_md.type == REGULAR_FILE)
+       && (pentry->object.file.open_fd.fileno != 0)
+       && (time(NULL) - pentry->object.file.open_fd.last_op > pgcparam->pclient->retention))
+      {
+        cache_inode_close(pentry, pgcparam->pclient, &status);
+        pgcparam->nb_to_be_purged--;
+      }
+    V_w(&pentry->lock);
+  }
 
   /* return true for continuing */
   if(pgcparam->nb_to_be_purged == 0)
@@ -649,6 +654,7 @@ int cache_inode_gc_fd_func(LRU_entry_t * plru_entry, void *addparam)
  * Garbagge opened file descriptors
  */
 cache_inode_status_t cache_inode_gc_fd(cache_inode_client_t * pclient,
+                                       cache_entry_t * pentry,
                                        cache_inode_status_t * pstatus)
 {
   cache_inode_param_gc_t gcparam;
@@ -667,6 +673,7 @@ cache_inode_status_t cache_inode_gc_fd(cache_inode_client_t * pclient,
   gcparam.ht = NULL;            /* not used */
   gcparam.pclient = pclient;
   gcparam.nb_to_be_purged = pclient->max_fd;
+  gcparam.pentry_skip = pentry;
 
   if(LRU_apply_function(pclient->lru_gc, cache_inode_gc_fd_func, (void *)&gcparam) !=
      LRU_LIST_SUCCESS)

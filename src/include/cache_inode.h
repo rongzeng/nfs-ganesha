@@ -422,6 +422,7 @@ typedef struct cache_inode_param_gc__
   cache_inode_client_t *pclient;
   hash_table_t *ht;
   unsigned int nb_to_be_purged;
+  cache_entry_t *pentry_skip;
 } cache_inode_param_gc_t;
 
 typedef struct cache_inode_dir_hint__
@@ -853,6 +854,7 @@ cache_inode_status_t cache_inode_cookieverf(cache_entry_t * pentry,
                                             cache_inode_status_t * pstatus);
 
 cache_inode_status_t cache_inode_renew_entry(cache_entry_t * pentry,
+                                             cache_inode_lock_how_t lock_how,
                                              fsal_attrib_list_t * pattr,
                                              hash_table_t * ht,
                                              cache_inode_client_t * pclient,
@@ -880,6 +882,7 @@ cache_entry_t *cache_inode_make_root(cache_inode_fsal_data_t * pfsdata,
                                      cache_inode_status_t * pstatus);
 
 cache_inode_status_t cache_inode_valid(cache_entry_t * pentry,
+                                       unsigned int close_fd,
                                        cache_inode_op_t op,
                                        cache_inode_client_t * pclient);
 
@@ -926,6 +929,7 @@ cache_inode_status_t cache_inode_gc(hash_table_t * ht,
                                     cache_inode_status_t * pstatus);
 
 cache_inode_status_t cache_inode_gc_fd(cache_inode_client_t * pclient,
+                                       cache_entry_t        * pentry,
                                        cache_inode_status_t * pstatus);
 
 cache_inode_status_t cache_inode_kill_entry( cache_entry_t * pentry,

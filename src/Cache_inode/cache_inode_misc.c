@@ -998,6 +998,7 @@ cache_inode_status_t cache_inode_error_convert(fsal_status_t fsal_status)
  * Entry is supposed to be locked when this function is called !!
  *
  * @param pentry [INOUT] entry to be validated.
+ * @param close_fd [IN] a flag to indicate if fd gc can be allowed. For operations only has read lock held.
  * @param op [IN] can be set to CACHE_INODE_OP_GET or CACHE_INODE_OP_SET to show the type of operation done.
  * @param pclient [INOUT] ressource allocated by the client for the nfs management.
  *
