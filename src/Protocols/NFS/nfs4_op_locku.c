@@ -164,12 +164,24 @@ int nfs4_op_locku(struct nfs_argop4 *op, compound_data_t * data, struct nfs_reso
                               STATEID_SPECIAL_FOR_LOCK,
                               tag)) != NFS4_OK)
     {
+      /* if state is returned, check replay via seqid */  
+      if (pstate_found && pstate_found->state_powner)
+      {
+        seqid4 seqid, seqid_cur;
+        seqid = arg_LOCKU4.seqid;
+        plock_owner = pstate_found->state_powner;
+        seqid_cur = plock_owner->so_owner.so_nfs4_owner.so_seqid;
+        if (seqid == seqid_cur)
+          goto check_seqid;
+      }
+
       res_LOCKU4.status = rc;
       return res_LOCKU4.status;
     }
 
   plock_owner = pstate_found->state_powner;
 
+check_seqid:
   /* Check seqid (lock_seqid or open_seqid) */
   if(!Check_nfs4_seqid(plock_owner,
                        arg_LOCKU4.seqid,
