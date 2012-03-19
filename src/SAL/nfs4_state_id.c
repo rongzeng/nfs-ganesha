@@ -377,6 +377,222 @@ int nfs4_State_Del(char other[OTHERSIZE])
  * @return 1 if ok, 0 otherwise.
  *
  */
+int nfs4_Check_Stateid_Seqid(stateid4        * pstate,
+                       cache_entry_t   * pentry,
+                       clientid4         clientid,
+                       state_t        ** ppstate,
+                       seqid4            owner_seqid,
+                       compound_data_t * data,
+                       char              flags,
+                       const char      * tag)
+{
+  u_int16_t         time_digest = 0;
+  state_t         * pstate2;
+  nfs_client_id_t * nfs_clientid;
+  char              str[OTHERSIZE * 2 + 1 + 6];
+  int32_t           diff;
+  unsigned char     version4 = FALSE;
+  
+  *ppstate = NULL;
+  data->current_stateid_valid = FALSE;
+
+  if(pstate == NULL)
+    return NFS4ERR_SERVERFAULT;
+
+  if(pentry == NULL)
+    return NFS4ERR_SERVERFAULT;
+
+  if(pentry->internal_md.type != REGULAR_FILE)
+    return NFS4ERR_SERVERFAULT;
+
+  if(isDebug(COMPONENT_STATE))
+    {
+      sprint_mem(str, (char *)pstate->other, OTHERSIZE);
+      sprintf(str + OTHERSIZE * 2, ":%u", (unsigned int) pstate->seqid);
+    }
+
+  /* Test for OTHER is all zeros */
+  if(memcmp(pstate->other, all_zero, OTHERSIZE) == 0)
+    {
+      if(pstate->seqid == 0 && (flags & STATEID_SPECIAL_ALL_0) != 0)
+        {
+          /* All 0 stateid */
+          LogDebug(COMPONENT_STATE,
+                   "Check %s stateid found special all 0 stateid", tag);
+          /* TODO FSF: eventually this may want to return an actual state for
+           * use in temporary locks for I/O.
+           */
+          return NFS4_OK;
+        }
+      if(pstate->seqid == 1 && (flags & STATEID_SPECIAL_CURRENT) != 0)
+        {
+          /* Special current stateid */
+          LogDebug(COMPONENT_STATE,
+                   "Check %s stateid found special 'current' stateid", tag);
+          /* Copy current stateid in and proceed to checks */
+          *pstate = data->current_stateid;
+        }
+
+      LogDebug(COMPONENT_STATE,
+               "Check %s stateid with OTHER all zeros, seqid %u unexpected",
+               tag, (unsigned int) pstate->seqid);
+      return NFS4ERR_BAD_STATEID;
+    }
+
+  /* Test for OTHER is all ones */
+  if(memcmp(pstate->other, all_one, OTHERSIZE) == 0)
+    {
+      /* Test for special all ones stateid */
+      if(pstate->seqid == 0xFFFFFFFF && (flags & STATEID_SPECIAL_ALL_1) != 0)
+        {
+          /* All 1 stateid */
+          LogDebug(COMPONENT_STATE,
+                   "Check %s stateid found special all 1 stateid", tag);
+          /* TODO FSF: eventually this may want to return an actual state for
+           * use in temporary locks for I/O.
+           */
+          return NFS4_OK;
+        }
+
+      LogDebug(COMPONENT_STATE,
+               "Check %s stateid with OTHER all ones, seqid %u unexpected",
+               tag, (unsigned int) pstate->seqid);
+      return NFS4ERR_BAD_STATEID;
+    }
+
+  /* Check if stateid was made from this server instance */
+  memcpy((char *)&time_digest, pstate->other, 2);
+
+  if((u_int16_t) (ServerBootTime & 0x0000FFFF) != time_digest)
+    {
+      LogDebug(COMPONENT_STATE,
+               "Check %s stateid found stale stateid %s", tag, str);
+      return NFS4ERR_STALE_STATEID;
+    }
+
+  /* Try to get the related state */
+  if(!nfs4_State_Get_Pointer(pstate->other, &pstate2))
+    {
+      /* stat */
+      data->pclient->stat.func_stats.nb_err_unrecover[CACHE_INODE_GET_STATE] += 1;
+
+      /* State not found : return NFS4ERR_BAD_STATEID, RFC3530 page 129 */
+      LogDebug(COMPONENT_STATE,
+               "Check %s stateid could not find state %s", tag, str);
+      if(nfs_param.nfsv4_param.return_bad_stateid == TRUE)      /* Dirty work-around for HPC environment */
+        return NFS4ERR_BAD_STATEID;
+      else
+        return NFS4_OK;
+    }
+
+  /* Get the related clientid */
+  /* If call from NFSv4.1 request, the clientid is provided through the session's structure, 
+   * with NFSv4.0, the clientid is related to the stateid itself */
+  if(clientid == 0LL)
+    {
+      if(nfs_client_id_Get_Pointer(pstate2->state_powner->so_owner.so_nfs4_owner.so_clientid,
+                           &nfs_clientid) != CLIENT_ID_SUCCESS)
+        {
+          LogDebug(COMPONENT_STATE,
+                   "Check %s stateid could not find clientid for state %s",
+                   tag, str);
+          if(nfs_param.nfsv4_param.return_bad_stateid == TRUE)  /* Dirty work-around for HPC environment */
+            return NFS4ERR_BAD_STATEID; /* Refers to a non-existing client... */
+          else
+            return NFS4_OK;
+        }
+
+      if (nfs4_is_lease_expired(nfs_clientid))
+        return NFS4ERR_EXPIRED;
+
+      nfs4_update_lease(nfs_clientid);
+      version4 = TRUE;
+    }
+
+  /* Sanity check : Is this the right file ? */
+  if(pstate2->state_pentry != pentry)
+    {
+      LogDebug(COMPONENT_STATE,
+               "Check %s stateid found stateid %s has wrong file", tag, str);
+      return NFS4ERR_BAD_STATEID;
+    }
+
+  /* Whether stateid.seqid may be zero depends on the state type
+     exclusively, See RFC 5661 pp. 161,287-288. */
+  if((pstate2->state_type == STATE_TYPE_LAYOUT) ||
+     (pstate->seqid != 0))
+    {
+      /* Check seqid in stateid */
+      diff = pstate->seqid - pstate2->state_seqid;
+      if((diff < 0) ||
+         /* take care of the wraparound case */
+         ((pstate2->state_seqid == 1) && (pstate->seqid == 0xFFFFFFFF)))
+        {
+          /* if this is NFSv4 and stateid's seqid is one less than current */
+          /* AND if owner_seqid is current */
+          /* pass state back to allow replay check */
+          if((version4 == TRUE) &&
+             ((diff == -1) ||
+              ((pstate2->state_seqid == 1) && (pstate->seqid == 0xFFFFFFFF))) &&
+             (owner_seqid == pstate2->state_powner->so_owner.so_nfs4_owner.so_seqid))
+          {
+             LogDebug(COMPONENT_STATE,
+                   "possible replay?");
+             *ppstate = pstate2;
+             return NFS4ERR_REPLAY;
+          }
+          /* OLD_STATEID */
+          LogDebug(COMPONENT_STATE,
+                   "Check %s stateid found OLD stateid %s, expected seqid %u",
+                   tag, str, (unsigned int) pstate2->state_seqid);
+          return NFS4ERR_OLD_STATEID;
+        }
+      /* stateid seqid is current and owner seqid is previous, replay (should be
+         an error condition that did not change the stateid, no real need to check
+         since the operation must be the same) */
+      else if((diff == 0) &&
+              (version4 == TRUE) &&
+              (owner_seqid == pstate2->state_powner->so_owner.so_nfs4_owner.so_seqid))
+        {
+          LogDebug(COMPONENT_STATE,
+                   "possible replay?");
+          *ppstate = pstate2;
+          return NFS4ERR_REPLAY;
+        }
+      else if(diff > 0)
+        {
+          /* BAD_STATEID */
+          LogDebug(COMPONENT_STATE,
+                   "Check %s stateid found BAD stateid %s, expected seqid %u",
+                   tag, str, (unsigned int) pstate2->state_seqid);
+          return NFS4ERR_BAD_STATEID;
+        }
+    }
+
+  LogFullDebug(COMPONENT_STATE,
+               "Check %s stateid found valid stateid %s - %p",
+               tag, str, pstate2);
+
+  /* Copy stateid into current for later use */
+  data->current_stateid       = *pstate;
+  data->current_stateid.seqid = pstate2->state_seqid;
+  data->current_stateid_valid = TRUE;
+
+  *ppstate = pstate2;
+  return NFS4_OK;
+}
+
+/**
+ *
+ * nfs4_Check_Stateid
+ *
+ * This routine checks the availability of the stateid and returns a pointer to it
+ *
+ * @param pstate [IN] pointer to the stateid to be checked.
+ *
+ * @return 1 if ok, 0 otherwise.
+ *
+ */
 int nfs4_Check_Stateid(stateid4        * pstate,
                        cache_entry_t   * pentry,
                        clientid4         clientid,
@@ -521,7 +737,9 @@ int nfs4_Check_Stateid(stateid4        * pstate,
     {
       /* Check seqid in stateid */
       diff = pstate->seqid - pstate2->state_seqid;
-      if(diff < 0)
+      if((diff < 0) ||
+         /* take care of the wraparound case */
+         ((pstate2->state_seqid == 1) && (pstate->seqid == 0xFFFFFFFF)))
         {
           /* OLD_STATEID */
           LogDebug(COMPONENT_STATE,
