@@ -130,6 +130,15 @@ int nfs4_op_open_confirm(struct nfs_argop4 *op,
                               STATEID_SPECIAL_FOR_LOCK,
                               tag)) != NFS4_OK)
     {
+      if (pstate_found && pstate_found->state_powner)
+      {
+        seqid4 seqid, seqid_cur;
+        seqid = arg_OPEN_CONFIRM4.seqid;
+        popen_owner = pstate_found->state_powner;
+        seqid_cur = popen_owner->so_owner.so_nfs4_owner.so_seqid;
+        if (seqid == seqid_cur)
+          goto check_seqid;
+      }
       res_OPEN_CONFIRM4.status = rc;
       return res_OPEN_CONFIRM4.status;
     }
@@ -138,6 +147,7 @@ int nfs4_op_open_confirm(struct nfs_argop4 *op,
 
   P(popen_owner->so_mutex);
 
+check_seqid:
   /* Check seqid */
   if(!Check_nfs4_seqid(popen_owner, arg_OPEN_CONFIRM4.seqid, op, data, resp, tag))
     {

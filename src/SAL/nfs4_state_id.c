@@ -390,6 +390,7 @@ int nfs4_Check_Stateid(stateid4        * pstate,
   nfs_client_id_t * nfs_clientid;
   char              str[OTHERSIZE * 2 + 1 + 6];
   int32_t           diff;
+  unsigned char     version4 = FALSE;
 
   *ppstate = NULL;
   data->current_stateid_valid = FALSE;
@@ -504,6 +505,7 @@ int nfs4_Check_Stateid(stateid4        * pstate,
         return NFS4ERR_EXPIRED;
 
       nfs4_update_lease(nfs_clientid);
+      version4 = TRUE;
     }
 
   /* Sanity check : Is this the right file ? */
@@ -523,6 +525,14 @@ int nfs4_Check_Stateid(stateid4        * pstate,
       diff = pstate->seqid - pstate2->state_seqid;
       if(diff < 0)
         {
+          /* if this is NFSv4 and stateid's seqid is one less than current */
+          /* pass state back to allow replay check */
+          if((diff == -1) && (version4 == TRUE))
+          {
+             LogDebug(COMPONENT_STATE,
+                   "possible replay?");
+             *ppstate = pstate2;
+          }
           /* OLD_STATEID */
           LogDebug(COMPONENT_STATE,
                    "Check %s stateid found OLD stateid %s, expected seqid %u",

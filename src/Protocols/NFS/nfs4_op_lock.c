@@ -92,7 +92,7 @@ int nfs4_op_lock(struct nfs_argop4 *op, compound_data_t * data, struct nfs_resop
   state_data_t              candidate_data;
   state_type_t              candidate_type;
   int                       rc = 0;
-  seqid4                    seqid;
+  seqid4                    seqid, seqid_cur;
   state_t                 * plock_state;    /* state for the lock */
   state_t                 * pstate_open;    /* state for the open owner */
   state_owner_t           * plock_owner;
@@ -201,6 +201,15 @@ int nfs4_op_lock(struct nfs_argop4 *op, compound_data_t * data, struct nfs_resop
                                   STATEID_SPECIAL_FOR_LOCK,
                                   tag)) != NFS4_OK)
         {
+          if (pstate_open && pstate_open->state_powner)
+          {
+            seqid = arg_LOCK4.locker.locker4_u.open_owner.open_seqid;
+            popen_owner = pstate_open->state_powner;
+            presp_owner = popen_owner;
+            seqid_cur = presp_owner->so_owner.so_nfs4_owner.so_seqid;
+            if (seqid == seqid_cur)
+               goto check_seqid;
+          }
           res_LOCK4.status = rc;
           LogDebug(COMPONENT_NFS_V4_LOCK,
                    "LOCK failed nfs4_Check_Stateid for open owner");
@@ -279,6 +288,16 @@ int nfs4_op_lock(struct nfs_argop4 *op, compound_data_t * data, struct nfs_resop
                                   STATEID_SPECIAL_FOR_LOCK,
                                   tag)) != NFS4_OK)
         {
+          if (plock_state && plock_state->state_powner)
+          {
+            seqid       = arg_LOCK4.locker.locker4_u.lock_owner.lock_seqid;
+            plock_owner = plock_state->state_powner;
+            popen_owner = plock_owner->so_owner.so_nfs4_owner.so_related_owner;
+            presp_owner = plock_owner;
+            seqid_cur = presp_owner->so_owner.so_nfs4_owner.so_seqid;
+            if (seqid == seqid_cur)
+               goto check_seqid;
+          }
           res_LOCK4.status = rc;
           LogDebug(COMPONENT_NFS_V4_LOCK,
                    "LOCK failed nfs4_Check_Stateid for existing lock owner");
@@ -347,6 +366,7 @@ int nfs4_op_lock(struct nfs_argop4 *op, compound_data_t * data, struct nfs_resop
 
   nfs4_update_lease(nfs_client_id);
 
+check_seqid:
   /* Check seqid (lock_seqid or open_seqid) */
   if(!Check_nfs4_seqid(presp_owner, seqid, op, data, resp, tag))
     {
