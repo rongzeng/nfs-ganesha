@@ -1601,7 +1601,7 @@ static void nfs_rpc_execute(nfs_request_data_t * preqnfs,
       /* Free only the non dropped requests */
       if(rc == NFS_REQ_OK) {
           /* XXXXXXX fix */
-          /* pworker_data->pfuncdesc->free_function(&res_nfs); */
+          pworker_data->pfuncdesc->free_function(&res_nfs);
       }
 
     }
