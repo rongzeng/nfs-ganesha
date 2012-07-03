@@ -912,6 +912,14 @@ static bool_t Svcauth_gss_destroy(SVCAUTH * auth)
   gss_release_buffer(&min_stat, &gd->cname);
   gss_release_buffer(&min_stat, &gd->checksum);
 
+#ifdef _MSPAC_SUPPORT
+  if (gd->pac_blob.data != NULL)
+  {
+    free(gd->pac_blob.data);
+    gd->pac_blob.data = NULL;
+  }
+#endif 
+
   if(gd->client_name)
     gss_release_name(&min_stat, &gd->client_name);
 
