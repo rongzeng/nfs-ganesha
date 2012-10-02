@@ -425,6 +425,12 @@ void LogClientListEntry(log_components_t            component,
                      entry, addr, perms);
         return;
 
+      case MATCH_ANY_CLIENT:
+        LogFullDebug(component,
+                     "  %p MATCH_ANY_CLIENT: *(%s)",
+                     entry, perms);
+        return;
+
       case BAD_CLIENT:
         LogCrit(component,
                 "  %p BAD_CLIENT: <unknown>(%s)",
@@ -472,7 +478,14 @@ int nfs_AddClientsToClientList(exportlist_client_t * clients,
       p_client->client_perms.options = option;
 
       /* using netdb to get information about the hostname */
-      if(client_hostname[0] == '@')
+      if((client_hostname[0] == '*') && (client_hostname[1] == '\0'))
+        {
+          p_client->type = MATCH_ANY_CLIENT;
+          LogDebug(COMPONENT_CONFIG,
+                   "entry %d %p: %s is match any client",
+                   i, p_client, var_name);
+        }
+      else if(client_hostname[0] == '@')
         {
           /* Entry is a netgroup definition */
           strncpy(p_client->client.netgroup.netgroupname,
@@ -723,7 +736,7 @@ static int BuildExportEntry(config_item_t        block,
                             const char         * label)
 {
   exportlist_t        * p_entry = NULL;
-  exportlist_t        * p_found_entry;
+  exportlist_t        * p_found_entry = NULL;
   char                  perms[1024];
   int                   i, rc;
   char                * var_name;
@@ -749,11 +762,8 @@ static int BuildExportEntry(config_item_t        block,
 
       /* the mandatory options */
       mandatory_options = FLAG_EXPORT_ID |
-                          FLAG_EXPORT_PATH |
-                          FLAG_EXPORT_ACCESS_LIST |
-                          FLAG_EXPORT_PSEUDO;
+                          FLAG_EXPORT_PATH;
 
-      p_entry->status = EXPORTLIST_OK;
       p_entry->use_commit = TRUE;
       p_entry->use_ganesha_write_buffer = FALSE;
       p_entry->UseCookieVerifier = TRUE;
@@ -883,9 +893,9 @@ static int BuildExportEntry(config_item_t        block,
 
       if(!STRCMP(var_name, CONF_EXPORT_ID))
         {
-
-          long int export_id;
-          char *end_ptr;
+          exportlist_t * p_fe;
+          long int       export_id;
+          char         * end_ptr;
 
           /* check if it has not already been set */
           if((set_options & FLAG_EXPORT_ID) == FLAG_EXPORT_ID)
@@ -932,11 +942,11 @@ static int BuildExportEntry(config_item_t        block,
               continue;
             }
 
-          p_found_entry = nfs_Get_export_by_id(pexportlist,
-                                               export_id);
+          p_fe = nfs_Get_export_by_id(pexportlist, export_id);
+
           if(label == CONF_LABEL_EXPORT)
             {
-              if(p_found_entry != NULL)
+              if(p_fe != NULL)
                 {
                   LogCrit(COMPONENT_CONFIG,
                           "NFS READ %s: Duplicate Export_id: \"%ld\"",
@@ -948,7 +958,7 @@ static int BuildExportEntry(config_item_t        block,
             }
           else if(p_entry == NULL)
             {
-              if(p_found_entry == NULL)
+              if(p_fe == NULL)
                 {
                   LogCrit(COMPONENT_CONFIG,
                           "NFS READ %s: EXPORT for Export_id: \"%ld\" not found",
@@ -956,12 +966,13 @@ static int BuildExportEntry(config_item_t        block,
                   err_flag = TRUE;
                   continue;
                 }
-              p_entry = p_found_entry;
+              p_entry = p_fe;
             }
         }
       else if(!STRCMP(var_name, CONF_EXPORT_PATH))
         {
-          int pathlen;
+          exportlist_t * p_fe;
+          int            pathlen;
 
           /* check if it has not already been set */
           if((set_options & FLAG_EXPORT_PATH) == FLAG_EXPORT_PATH)
@@ -1016,11 +1027,14 @@ static int BuildExportEntry(config_item_t        block,
               continue;
             }
 
-          p_found_entry = nfs_Get_export_by_path(pexportlist,
-                                                 ppath);
+          p_fe = nfs_Get_export_by_path(pexportlist, ppath);
           if(label == CONF_LABEL_EXPORT)
             {
-              if(p_found_entry != NULL)
+              /* Pseudo, Tag, and Export_Id must be unique, Path may be
+               * duplicated if at least Tag or Pseudo is specified (and
+               * unique).
+               */
+              if(p_fe != NULL && p_found_entry != NULL)
                 {
                   LogCrit(COMPONENT_CONFIG,
                           "NFS READ %s: Duplicate Path: \"%s\"",
@@ -1029,12 +1043,16 @@ static int BuildExportEntry(config_item_t        block,
                   continue;
                 }
 
+              /* Remember the entry we found so we can verify Tag and/or Pseudo
+               * is set by the time the EXPORT stanza is complete.
+               */
+              p_found_entry = p_fe;
               strcpy(p_entry->fullpath, ppath);
               strcpy(p_entry->dirname, ppath);
             }
           else if(p_entry == NULL)
             {
-              if(p_found_entry == NULL)
+              if(p_fe == NULL)
                 {
                   LogCrit(COMPONENT_CONFIG,
                           "NFS READ %s: EXPORT for Path: \"%s\" not found",
@@ -1042,7 +1060,7 @@ static int BuildExportEntry(config_item_t        block,
                   err_flag = TRUE;
                   continue;
                 }
-              p_entry = p_found_entry;
+              p_entry = p_fe;
             }
 
         }
@@ -1197,6 +1215,8 @@ static int BuildExportEntry(config_item_t        block,
         }
       else if(!STRCMP(var_name, CONF_EXPORT_PSEUDO))
         {
+          exportlist_t * p_fe;
+
           if(label == CONF_LABEL_EXPORT_CLIENT)
             {
               LogCrit(COMPONENT_CONFIG,
@@ -1224,9 +1244,8 @@ static int BuildExportEntry(config_item_t        block,
               continue;
             }
 
-          p_found_entry = nfs_Get_export_by_pseudo(pexportlist,
-                                                   var_value);
-          if(p_found_entry != NULL)
+          p_fe = nfs_Get_export_by_pseudo(pexportlist, var_value);
+          if(p_fe != NULL)
             {
               LogCrit(COMPONENT_CONFIG,
                       "NFS READ %s: Duplicate Pseudo: \"%s\"",
@@ -2265,6 +2284,8 @@ static int BuildExportEntry(config_item_t        block,
         }
       else if(!STRCMP(var_name, CONF_EXPORT_FS_TAG))
         {
+          exportlist_t * p_fe;
+
           if(label == CONF_LABEL_EXPORT_CLIENT)
             {
               LogCrit(COMPONENT_CONFIG,
@@ -2283,9 +2304,9 @@ static int BuildExportEntry(config_item_t        block,
 
           set_options |= FLAG_EXPORT_FS_TAG;
 
-          p_found_entry = nfs_Get_export_by_tag(pexportlist,
-                                                var_value);
-          if(p_found_entry != NULL)
+          p_fe = nfs_Get_export_by_tag(pexportlist, var_value);
+
+          if(p_fe != NULL)
             {
               LogCrit(COMPONENT_CONFIG,
                       "NFS READ %s: Duplicate Tag: \"%s\"",
@@ -2293,7 +2314,6 @@ static int BuildExportEntry(config_item_t        block,
               err_flag = TRUE;
               continue;
             }
-
 
           strncpy(p_entry->FS_tag, var_value, MAXPATHLEN);
         }
@@ -2630,12 +2650,6 @@ static int BuildExportEntry(config_item_t        block,
                 CONF_EXPORT_READ_ACCESS, CONF_EXPORT_READWRITE_ACCESS,
                 CONF_EXPORT_MD_ACCESS,   CONF_EXPORT_MD_RO_ACCESS);
 
-      if((set_options & FLAG_EXPORT_PSEUDO) !=
-         (FLAG_EXPORT_PSEUDO & mandatory_options))
-        LogCrit(COMPONENT_CONFIG,
-                "NFS READ %s: Missing mandatory parameter %s",
-                label, CONF_EXPORT_PSEUDO);
-
       err_flag = TRUE;
     }
 
@@ -2651,14 +2665,50 @@ static int BuildExportEntry(config_item_t        block,
     }
   else if(label == CONF_LABEL_EXPORT)
     {
+      if(((p_perms->options & EXPORT_OPTION_NFSV4) != 0) &&
+         ((set_options & FLAG_EXPORT_PSEUDO) == 0))
+        {
+          /* If we export for NFS v4, Pseudo is required */
+          LogCrit(COMPONENT_CONFIG,
+                  "NFS READ %s: Missing mandatory parameter %s",
+                  label, CONF_EXPORT_PSEUDO);
+
+          err_flag = TRUE;
+        }
+
+      if((p_found_entry != NULL) &&
+         ((set_options & FLAG_EXPORT_PSEUDO) == 0) &&
+         ((set_options & FLAG_EXPORT_FS_TAG) == 0))
+        {
+          /* Duplicate export must specify at least one of tag and pseudo */
+          LogCrit(COMPONENT_CONFIG,
+                  "NFS READ %s: Duplicate %s must have at least %s or %s",
+                  label, label, CONF_EXPORT_PSEUDO, CONF_EXPORT_FS_TAG);
+
+          err_flag = TRUE;
+        }
+
       /* Here we can make sure certain options are turned on for specific FSALs */
-      if(!fsal_specific_checks(p_entry))
+      if(!err_flag && !fsal_specific_checks(p_entry))
         {
           LogCrit(COMPONENT_CONFIG,
                    "NFS READ %s: Found conflicts in export entry, ignoring entry.",
                    label);
           RemoveExportEntry(p_entry);
           return -1;
+        }
+    }
+
+  if(label == CONF_LABEL_EXPORT_CLIENT)
+    {
+      if(((p_entry->export_perms.options & EXPORT_OPTION_NFSV4) == 0) &&
+         ((p_perms->options & EXPORT_OPTION_NFSV4) != 0))
+        {
+          LogCrit(COMPONENT_CONFIG,
+                  "NFS READ %s: Export %d (%s) doesn't allow NFS v4 (pseudo path won't be set up)",
+                  label, p_entry->id, p_entry->fullpath);
+
+          err_flag = TRUE;
         }
     }
 
@@ -2741,7 +2791,6 @@ exportlist_t *BuildDefaultExport()
 
   /** @todo set default values here */
 
-  p_entry->status = EXPORTLIST_OK;
   p_entry->export_perms.anonymous_uid = (uid_t) ANON_UID;
 
   /* By default, export is RW */
@@ -3166,18 +3215,22 @@ static int export_client_match(sockaddr_t *hostaddr,
           /** @toto BUGAZOMEU a completer lors de l'integration de RPCSEC_GSS */
           LogFullDebug(COMPONENT_DISPATCH,
                        "----------> Unsupported type GSS_PRINCIPAL_CLIENT");
-          return FALSE;
           break;
+
+       case HOSTIF_CLIENT_V6:
+          break;
+
+       case MATCH_ANY_CLIENT:
+          *pclient_found = *p_client;
+          LogFullDebug(COMPONENT_DISPATCH,
+                       "This matches any client wildcard for entry %u",
+                       i);
+          return TRUE;
 
        case BAD_CLIENT:
           LogCrit(COMPONENT_DISPATCH,
                   "Bad client in position %u seen in export list", i );
-	  continue ;
-
-        default:
-           LogCrit(COMPONENT_DISPATCH,
-                   "Unsupported client in position %u in export list with type %u", i, p_client->type);
-	   continue ;
+	  break ;
         }                       /* switch */
     }                           /* for */
 
@@ -3222,6 +3275,7 @@ static int export_client_matchv6(struct in6_addr *paddrv6,
         case NETGROUP_CLIENT:
         case WILDCARDHOST_CLIENT:
         case GSSPRINCIPAL_CLIENT:
+        case BAD_CLIENT:
           continue;
 
         case HOSTIF_CLIENT_V6:
@@ -3234,8 +3288,12 @@ static int export_client_matchv6(struct in6_addr *paddrv6,
             }
           break;
 
-        default:
-          break;
+        case MATCH_ANY_CLIENT:
+           *pclient_found = *p_client;
+           LogFullDebug(COMPONENT_DISPATCH,
+                        "This matches any client wildcard for entry %u",
+                        i);
+          return TRUE;
         }                       /* switch */
     }                           /* for */
 
@@ -3495,6 +3553,7 @@ void nfs_export_check_access(sockaddr_t     * hostaddr,
       LogFullDebug(COMPONENT_DISPATCH,
                    "Export %d Client %s matches EXPORT_CLIENT Access List",
                    pexport->id, ipstring);
+      LogClientListEntry(COMPONENT_DISPATCH, &client_found);
 
       *pexport_perms = client_found.client_perms;
 
@@ -3516,6 +3575,7 @@ void nfs_export_check_access(sockaddr_t     * hostaddr,
       LogFullDebug(COMPONENT_DISPATCH,
                    "Export %d Client %s matches Root_Access",
                    pexport->id, ipstring);
+      LogClientListEntry(COMPONENT_DISPATCH, &client_found);
 
       pexport_perms->options |= client_found.client_perms.options;
     }
@@ -3531,6 +3591,7 @@ void nfs_export_check_access(sockaddr_t     * hostaddr,
       LogFullDebug(COMPONENT_DISPATCH,
                    "Export %d Client %s matches RW_Access",
                    pexport->id, ipstring);
+      LogClientListEntry(COMPONENT_DISPATCH, &client_found);
 
       pexport_perms->options |= EXPORT_OPTION_RW_ACCESS |
                                 EXPORT_OPTION_MD_ACCESS;
@@ -3546,6 +3607,7 @@ void nfs_export_check_access(sockaddr_t     * hostaddr,
       LogFullDebug(COMPONENT_DISPATCH,
                    "Export %d Client %s matches R_Access",
                    pexport->id, ipstring);
+      LogClientListEntry(COMPONENT_DISPATCH, &client_found);
 
       pexport_perms->options |= EXPORT_OPTION_READ_ACCESS |
                                 EXPORT_OPTION_MD_READ_ACCESS;
@@ -3562,6 +3624,7 @@ void nfs_export_check_access(sockaddr_t     * hostaddr,
       LogFullDebug(COMPONENT_DISPATCH,
                    "Export %d Client %s matches MDONLY_Access",
                    pexport->id, ipstring);
+      LogClientListEntry(COMPONENT_DISPATCH, &client_found);
 
       pexport_perms->options |= EXPORT_OPTION_MD_ACCESS;
 
@@ -3577,6 +3640,7 @@ void nfs_export_check_access(sockaddr_t     * hostaddr,
       LogFullDebug(COMPONENT_DISPATCH,
                    "Export %d Client %s matches MDONLY_RO_Access",
                    pexport->id, ipstring);
+      LogClientListEntry(COMPONENT_DISPATCH, &client_found);
 
       pexport_perms->options |= EXPORT_OPTION_MD_READ_ACCESS;
 
@@ -3592,6 +3656,7 @@ void nfs_export_check_access(sockaddr_t     * hostaddr,
       LogFullDebug(COMPONENT_DISPATCH,
                    "Export %d Client %s matches Access",
                    pexport->id, ipstring);
+      LogClientListEntry(COMPONENT_DISPATCH, &client_found);
 
       /* Grab the root access and rw/ro/mdonly/mdonly ro access from export */
       pexport_perms->options |= pexport->export_perms.options &
@@ -3621,6 +3686,8 @@ void nfs_export_check_access(sockaddr_t     * hostaddr,
   LogFullDebug(COMPONENT_DISPATCH,
                "export %d permission denied - no matching entry",
                pexport->id);
+
+  pexport_perms->options = 0;
 
   return;
 }                               /* nfs_export_check_access */
@@ -3696,6 +3763,8 @@ int nfs_export_create_root_entry(struct glist_head * pexportlist)
               continue;
             }
 
+          pcurrent->FS_export_context.fe_export = pcurrent;
+
           /* get the related client context */
           fsal_status = FSAL_GetClientContext(&context, &pcurrent->FS_export_context, 0, 0, NULL, 0 ) ;
 
@@ -3758,27 +3827,23 @@ int nfs_export_create_root_entry(struct glist_head * pexportlist)
           /* Add this entry to the Cache Inode as a "root" entry */
           fsdata.fh_desc.start = (caddr_t) &fsal_handle;
           fsdata.fh_desc.len = 0;
-	  (void) FSAL_ExpandHandle(
-#ifdef _USE_SHARED_FSAL
-		                   context[pcurrent->fsalid].export_context,
-#else
-				   context.export_context,
-#endif
+	  (void) FSAL_ExpandHandle(context.export_context,
 				   FSAL_DIGEST_SIZEOF,
 				   &fsdata.fh_desc);
 
-          /* cache_inode_make_root returns a cache_entry with
+          /* cache_inode_get returns a cache_entry with
              reference count of 2, where 1 is the sentinel value of
              a cache entry in the hash table.  The export list in
-             this case owns the extra reference, but other users of
-             cache_inode_make_root MUST put the entry.  In the future
+             this case owns the extra reference.  In the future
              if functionality is added to dynamically add and remove
              export entries, then the function to remove an export
              entry MUST put the extra reference. */
 
-          if((pentry = cache_inode_make_root(&fsdata,
-                                             &context,
-                                             &cache_status)) == NULL)
+          if((pentry = cache_inode_get(&fsdata,
+                                       NULL, /* Don't need the attr */
+                                       &context,
+                                       NULL,
+                                       &cache_status)) == NULL)
             {
               LogCrit(COMPONENT_INIT,
                       "Error %s when creating root cached entry for %s, removing export id %u",
@@ -3786,10 +3851,13 @@ int nfs_export_create_root_entry(struct glist_head * pexportlist)
               RemoveExportEntry(pcurrent);
               continue;
             }
-          else
-            LogInfo(COMPONENT_INIT,
-                    "Added root entry for path %s on export_id=%d",
-                    pcurrent->fullpath, pcurrent->id);
+
+          /* Save away the root entry */
+          pcurrent->exp_root_cache_inode = pentry;
+
+          LogInfo(COMPONENT_INIT,
+                  "Added root entry for path %s on export_id=%d",
+                  pcurrent->fullpath, pcurrent->id);
 
           /* Set the pentry as a referral if needed */
           if(strcmp(pcurrent->referral, ""))
@@ -3867,5 +3935,33 @@ exportlist_t *GetExportEntry(char *exportPath)
     {
       LogDebug(COMPONENT_CONFIG, "returning export NULL");
       return NULL;
+    }
+}
+
+void set_mounted_on_fileid(cache_entry_t      * entry,
+                           fsal_attrib_list_t * attr,
+                           exportlist_t       * exp)
+{
+  if(entry == exp->exp_root_cache_inode)
+    {
+      attr->mounted_on_fileid = exp->exp_mounted_on_file_id;
+
+      LogFullDebug(COMPONENT_DISPATCH,
+                   "Setting mounted_on_file_id to %"PRIu64
+                   " from Export_Id %d Pseudo %s",
+                   (uint64_t) attr->mounted_on_fileid,
+                   exp->id,
+                   exp->pseudopath);
+    }
+  else
+    {
+      attr->mounted_on_fileid = attr->fileid;
+
+      LogFullDebug(COMPONENT_DISPATCH,
+                   "Setting mounted_on_file_id to %"PRIu64
+                   " (same as fileid) because entry is not root of Export_Id %d Pseudo %s",
+                   (uint64_t) attr->mounted_on_fileid,
+                   exp->id,
+                   exp->pseudopath);
     }
 }

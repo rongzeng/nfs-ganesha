@@ -105,7 +105,8 @@ typedef enum exportlist_client_type__
   WILDCARDHOST_CLIENT = 4,
   GSSPRINCIPAL_CLIENT = 5,
   HOSTIF_CLIENT_V6    = 6,
-  BAD_CLIENT          = 7
+  MATCH_ANY_CLIENT    = 7,
+  BAD_CLIENT          = 8
 } exportlist_client_type_t;
 
 typedef enum exportlist_status__
@@ -151,11 +152,10 @@ typedef struct exportlist_client__
 struct fsal_up_filter_list_t_;
 #endif
 
-typedef struct exportlist__
+struct exportlist__
 {
   struct glist_head exp_list;
   unsigned short id;            /* entry identifier   */
-  exportlist_status_t status;   /* entry's status     */
   char dirname[MAXPATHLEN+2];   /* path relative to fs root */
   char fullpath[MAXPATHLEN+2];  /* the path from the root */
   char pseudopath[MAXPATHLEN+2];/* nfsv4 pseudo-filesystem 'virtual' path */
@@ -170,8 +170,6 @@ typedef struct exportlist__
 
   export_perms_t export_perms;  /* avail. mnt options */
 
-  unsigned char seckey[EXPORT_KEY_SIZE];        /* Checksum for FH validity */
-
   bool_t use_ganesha_write_buffer;
   bool_t use_commit;
 
@@ -184,7 +182,6 @@ typedef struct exportlist__
   fsal_off_t MaxOffsetRead;     /* Maximum Offset allowed for read                   */
   unsigned int UseCookieVerifier;       /* Is Cookie verifier to be used ?                   */
   exportlist_client_t clients;  /* allowed clients                                   */
-  unsigned int fsalid ;
 
   pthread_mutex_t   exp_state_mutex; /* Mutex to protect the following two lists */
   struct glist_head exp_state_list;  /* List of NFS v4 state belonging to this export */
@@ -204,7 +201,10 @@ typedef struct exportlist__
 #endif /* _USE_FSAL_UP */
 
   nfs_worker_stat_t *worker_stats; /* List of worker stats to support per-share stat. */
-} exportlist_t;
+
+  fsal_u64_t      exp_mounted_on_file_id; /* Id of the node this export is mounted on */
+  cache_entry_t * exp_root_cache_inode;   /* cache inode entry for the root of this export  */
+};
 
 /* Constant for options masks */
 #define EXPORT_OPTION_NOSUID          0x00000001        /* mask off setuid mode bit            */
@@ -308,7 +308,6 @@ typedef struct exportlist__
 typedef struct pseudofs_entry
 {
   char name[MAXNAMLEN];                         /**< The entry name          */
-  char fullname[MAXPATHLEN];                    /**< The full path in the pseudo fs */
   unsigned int pseudo_id;                       /**< ID within the pseudoFS  */
   exportlist_t *junction_export;                /**< Export list related to the junction, NULL if entry is no junction*/
   struct pseudofs_entry *sons;                  /**< pointer to a linked list of sons */
@@ -317,7 +316,7 @@ typedef struct pseudofs_entry
   struct pseudofs_entry *last;                  /**< pointer to the last entry in a list of sons */
 } pseudofs_entry_t;
 
-#define MAX_PSEUDO_ENTRY 100
+#define MAX_PSEUDO_ENTRY 2048
 typedef struct pseudofs
 {
   pseudofs_entry_t root;
@@ -373,7 +372,6 @@ typedef struct compoud_data
   nfs_fh4 rootFH; /*< Root filehandle */
   nfs_fh4 savedFH; /*< Saved filehandle */
   nfs_fh4 publicFH; /*< Public filehandle */
-  nfs_fh4 mounted_on_FH; /*< File handle to "mounted on" File System */
   stateid4 current_stateid; /*< Current stateid */
   bool_t current_stateid_valid; /*< Current stateid is valid */
   unsigned int minorversion; /*< NFSv4 minor version */
@@ -390,7 +388,6 @@ typedef struct compoud_data
   export_perms_t export_perms; /*< Permissions for export for currentFH */
   export_perms_t saved_export_perms; /*< Permissions for export for savedFH */
   pseudofs_t *pseudofs; /*< Pointer to the pseudo filesystem tree */
-  char MntPath[MAXPATHLEN]; /*< Path (in pseudofs) of the current entry */
   struct svc_req *reqp; /*< RPC Request related to the compound */
   struct nfs_worker_data__ *pworker; /*< Worker thread data */
   nfs_client_cred_t credential; /*< Raw RPC credentials */
@@ -458,5 +455,9 @@ void LogClientListEntry(log_components_t            component,
 
 void FreeClientList(exportlist_client_t * clients);
 void RemoveExportEntry(exportlist_t * p_entry);
+
+void set_mounted_on_fileid(cache_entry_t      * entry,
+                           fsal_attrib_list_t * attr,
+                           exportlist_t       * exp);
 
 #endif                          /* _NFS_EXPORTS_H */
