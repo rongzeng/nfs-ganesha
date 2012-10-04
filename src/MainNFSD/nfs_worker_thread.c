@@ -913,7 +913,7 @@ static void nfs_rpc_execute(request_data_t    * preq,
                       "socket=%d function:%s client:%s program:%d "
                       "nfs version:%d proc:%d xid:%u",
                       req->rq_xid, xprt->xp_fd,
-                      pworker_data->pfuncdesc->funcname,
+                      pworker_data->funcdesc->funcname,
                       pworker_data->hostaddr_str, (int)req->rq_prog,
                       (int)req->rq_vers, (int)req->rq_proc, req->rq_xid);
               svcerr_systemerr2(xprt, req);
@@ -1256,7 +1256,7 @@ static void nfs_rpc_execute(request_data_t    * preq,
         }
 
       /* Test if export allows the authentication provided */
-      if(((pworker_data->pfuncdesc->dispatch_behaviour & SUPPORTS_GSS) != 0) &&
+      if(((pworker_data->funcdesc->dispatch_behaviour & SUPPORTS_GSS) != 0) &&
          (nfs_export_check_security(req, &export_perms, pexport) == FALSE))
         {
           LogInfo(COMPONENT_DISPATCH,
@@ -1601,7 +1601,7 @@ static void nfs_rpc_execute(request_data_t    * preq,
                   "socket=%d function:%s client:%s program:%d "
                   "nfs version:%d proc:%d xid:%u",
                   req->rq_xid, xprt->xp_fd,
-                  pworker_data->pfuncdesc->funcname,
+                  pworker_data->funcdesc->funcname,
                   pworker_data->hostaddr_str, (int)req->rq_prog,
                   (int)req->rq_vers, (int)req->rq_proc, req->rq_xid);
           svcerr_systemerr2(xprt, req);
