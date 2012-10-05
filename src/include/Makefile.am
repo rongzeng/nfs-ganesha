@@ -56,9 +56,12 @@ noinst_HEADERS = abstract_atomic.h               \
                  rbt_tree.h                      \
                  nfs_ip_stats.h                  \
                  Connectathon_config_parsing.h   \
-		 ganesha_rpc.h 	\
+		 ganesha_rpc.h                   \
                  Rpc_com_tirpc.h                 \
-                 solaris_port.h \
+                 solaris_port.h                  \
+                 nfs_req_queue.h                 \
+                 wait_queue.h                    \
+                 fridgethr.h                     \
 		 rpc/svc_auth.h
 
 if USE_NLM
