@@ -280,8 +280,6 @@ int nfs4_Compound(nfs_arg_t *parg,
   data.pseudofs = nfs4_GetPseudoFs();
   data.reqp = preq;
 
-  strcpy(data.MntPath, "/");
-
   /* Building the client credential field */
   if(nfs_rpc_req2client_cred(preq, &(data.credential)) == -1)
     return NFS_REQ_DROP;        /* Malformed credential */
@@ -833,9 +831,6 @@ void compound_data_Free(compound_data_t * data)
 
   if(data->savedFH.nfs_fh4_val != NULL)
     gsh_free(data->savedFH.nfs_fh4_val);
-
-  if(data->mounted_on_FH.nfs_fh4_val != NULL)
-    gsh_free(data->mounted_on_FH.nfs_fh4_val);
 
 }                               /* compound_data_Free */
 

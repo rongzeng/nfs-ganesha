@@ -59,12 +59,6 @@
 #define FSAL_UP_RENAME       0x00000100   /* this is a rename op */
 
 
-typedef struct fsal_up_filter_list_t_
-{
-  char name[MAX_FILTER_NAMELEN];
-  struct fsal_up_filter_list_t_ *next;
-} fsal_up_filter_list_t;
-
 typedef struct fsal_up_event_bus_parameter_t_
 {
 } fsal_up_event_bus_parameter_t;
@@ -72,19 +66,12 @@ typedef struct fsal_up_event_bus_parameter_t_
 typedef struct fsal_up_event_bus_context_t_
 {
   fsal_export_context_t FS_export_context;
-  pool_t *event_pool;
-  pthread_mutex_t *event_pool_lock;
 } fsal_up_event_bus_context_t;
 
 typedef struct fsal_up_event_data_context_t_
 {
   cache_inode_fsal_data_t fsal_data;
 } fsal_up_event_data_context_t;
-
-typedef struct fsal_up_arg_t_
-{
-  struct exportlist__ *export_entry;
-} fsal_up_arg_t;
 
 typedef struct fsal_up_event_bus_filter_t_
 {
@@ -189,8 +176,21 @@ typedef struct fsal_up_event_functions__
   fsal_status_t (*fsal_up_invalidate) (fsal_up_event_data_t * pevdata );
 } fsal_up_event_functions_t;
 
+/**************************
+ * FSAL UP global variables
+ **************************/
+
+extern pool_t * fsal_up_event_pool;
+
+/**************************
+ * FSAL UP functions
+ **************************/
+
 #define FSAL_UP_DUMB_TYPE "DUMB"
 fsal_up_event_functions_t *get_fsal_up_dumb_functions();
+
+fsal_status_t process_event(fsal_up_event_t          * myevent,
+                           fsal_up_event_functions_t * event_func);
 
 #endif /* _USE_FSAL_UP */
 #endif /* _FSAL_UP_H */

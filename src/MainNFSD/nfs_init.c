@@ -1455,8 +1455,6 @@ static void nfs_Start_threads(void)
    }
  LogEvent(COMPONENT_THREAD,
           "fsal_up_process_thread was started successfully");
-
-  create_fsal_up_threads();
 #endif /* _USE_FSAL_UP */
 
 }                               /* nfs_Start_threads */
@@ -1705,15 +1703,6 @@ static void nfs_Init(const nfs_start_info_t * p_start_info)
   /* Set the stats to zero */
   nfs_reset_stats();
 
-  /* Creates the pseudo fs */
-  LogDebug(COMPONENT_INIT, "Now building pseudo fs");
-  if((rc = nfs4_ExportToPseudoFS(nfs_param.pexportlist)) != 0)
-    LogFatal(COMPONENT_INIT,
-             "Error %d while initializing NFSv4 pseudo file system", rc);
-
-  LogInfo(COMPONENT_INIT,
-          "NFSv4 pseudo file system successfully initialized");
-
   /* Init duplicate request cache */
   LogDebug(COMPONENT_INIT, "Now building duplicate request hash table cache");
   if((rc = nfs_Init_dupreq(nfs_param.dupreq_param)) != DUPREQ_SUCCESS)
@@ -1858,6 +1847,11 @@ static void nfs_Init(const nfs_start_info_t * p_start_info)
           "9P resources successfully initialized");
 #endif /* _USE_9P */
 
+#ifdef _USE_FSAL_UP
+  /* Initialize FSAL UP queue and event pool */
+  nfs_Init_FSAL_UP();
+#endif /* _USE_FSAL_UP */
+
   /* Create the root entries for each exported FS */
   if((rc = nfs_export_create_root_entry(nfs_param.pexportlist)) != TRUE)
     {
@@ -1868,12 +1862,14 @@ static void nfs_Init(const nfs_start_info_t * p_start_info)
   LogInfo(COMPONENT_INIT,
           "Cache Inode root entries successfully created");
 
-  /* Creation of FSAL_UP threads */
-  /* This thread depends on ALL parts of Ganesha being initialized. 
-   * So initialize Callback interface after everything else. */
-#ifdef _USE_FSAL_UP
-  nfs_Init_FSAL_UP(); /* initalizes an event pool */
-#endif /* _USE_FSAL_UP */
+  /* Creates the pseudo fs */
+  LogDebug(COMPONENT_INIT, "Now building pseudo fs");
+  if((rc = nfs4_ExportToPseudoFS(nfs_param.pexportlist)) != 0)
+    LogFatal(COMPONENT_INIT,
+             "Error %d while initializing NFSv4 pseudo file system", rc);
+
+  LogInfo(COMPONENT_INIT,
+          "NFSv4 pseudo file system successfully initialized");
 
   /* Create stable storage directory, this needs to be done before
    * starting the recovery thread.

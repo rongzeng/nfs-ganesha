@@ -860,6 +860,31 @@ int nfs4_Fattr_Fill(fattr4 *Fattr, int cnt, uint32_t *attrvalslist,
     }
   return 0;
 }
+
+int nfs4_Fattr_Fill_Error(fattr4 *Fattr, nfsstat4 error)
+{
+  fattr4_rdattr_error rdattr_error = htonl(error);
+
+  /* Set the bitmap for result */
+  memset(Fattr, 0, sizeof(*Fattr));
+  if((Fattr->attrmask.bitmap4_val = gsh_calloc(1, sizeof(uint32_t))) == NULL)
+    return -1;
+  Fattr->attrmask.bitmap4_len = 1;
+  Fattr->attrmask.bitmap4_val[0] = WORD0_FATTR4_RDATTR_ERROR;
+
+  /* Set the attrlist4 */
+  rdattr_error = htonl(error);
+  Fattr->attr_vals.attrlist4_len = sizeof(rdattr_error);
+  Fattr->attr_vals.attrlist4_val = gsh_malloc(sizeof(rdattr_error));
+  if(Fattr->attr_vals.attrlist4_val == NULL)
+    {
+      gsh_free(Fattr->attrmask.bitmap4_val);
+      return -1;
+    }
+  memcpy(Fattr->attr_vals.attrlist4_val, &rdattr_error, sizeof(rdattr_error));
+  return 0;
+}
+
 /**
  *
  * nfs4_FSALattr_To_Fattr: Converts FSAL Attributes to NFSv4 Fattr buffer.
@@ -1663,7 +1688,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t *pexport,
           break;
 
         case FATTR4_MOUNTED_ON_FILEID:
-          file_id = nfs_htonl64(pattr->fileid);
+          file_id = nfs_htonl64(pattr->mounted_on_fileid);
           memcpy((char *)(attrvalsBuffer + LastOffset), &file_id, sizeof(fattr4_fileid));
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
           op_attr_success = 1;
