@@ -1706,10 +1706,6 @@ typedef struct CB_COMPOUND4res CB_COMPOUND4res;
 
 #ifndef _USE_SWIG
 /* the xdr functions */
-extern bool_t xdr_int32_t();
-extern bool_t xdr_uint32_t();
-extern bool_t xdr_int64_t();
-extern bool_t xdr_uint64_t();
 extern bool_t xdr_nfs_ftype4();
 extern bool_t xdr_nfsstat4();
 extern bool_t xdr_bitmap4();
