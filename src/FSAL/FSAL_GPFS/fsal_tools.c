@@ -83,7 +83,7 @@ int GPFSFSAL_handlecmp(fsal_handle_t * handle_1, fsal_handle_t * handle_2,
     return -2;
 
   if(memcmp
-     (handle1->data.handle.f_handle, handle2->data.handle.f_handle, handle1->data.handle.handle_key_size))
+     (handle1->data.handle, handle2->data.handle, handle1->data.handle.handle_key_size))
     return -4;
 
   return 0;
@@ -111,6 +111,7 @@ unsigned int GPFSFSAL_Handle_to_HashIndex(fsal_handle_t * handle,
   unsigned int extract = 0;
   unsigned int mod;
   gpfsfsal_handle_t *p_handle = (gpfsfsal_handle_t *)handle;
+  unsigned char *handle_ptr = (unsigned char *)handle;
 
   /* XXX If the handle is not 32 bits-aligned, the last loop will get uninitialized
    * chars after the end of the handle. We must avoid this by skipping the last loop
@@ -121,7 +122,7 @@ unsigned int GPFSFSAL_Handle_to_HashIndex(fsal_handle_t * handle,
   sum = cookie;
   for(cpt = 0; cpt < p_handle->data.handle.handle_key_size - mod; cpt += sizeof(unsigned int))
     {
-      memcpy(&extract, &(p_handle->data.handle.f_handle[cpt]), sizeof(unsigned int));
+      memcpy(&extract, &(handle_ptr[cpt]), sizeof(unsigned int));
       sum = (3 * sum + 5 * extract + 1999) % index_size;
     }
 
@@ -133,7 +134,7 @@ unsigned int GPFSFSAL_Handle_to_HashIndex(fsal_handle_t * handle,
         {
           /* shift of 1 byte */
           extract <<= 8;
-          extract |= (unsigned int)p_handle->data.handle.f_handle[cpt];
+          extract |= (unsigned int)handle_ptr[cpt];
         }
       sum = (3 * sum + 5 * extract + 1999) % index_size;
     }
@@ -168,10 +169,11 @@ unsigned int GPFSFSAL_Handle_to_RBTIndex(fsal_handle_t * handle, unsigned int co
    * and doing a special processing for the last bytes */
 
   mod = p_handle->data.handle.handle_key_size % sizeof(unsigned int);
+  unsigned char *handle_ptr = (unsigned char *)handle;
 
   for(cpt = 0; cpt < p_handle->data.handle.handle_key_size - mod; cpt += sizeof(unsigned int))
     {
-      memcpy(&extract, &(p_handle->data.handle.f_handle[cpt]), sizeof(unsigned int));
+      memcpy(&extract, &(handle_ptr[cpt]), sizeof(unsigned int));
       h = (857 * h ^ extract) % 715827883;
     }
 
@@ -183,7 +185,7 @@ unsigned int GPFSFSAL_Handle_to_RBTIndex(fsal_handle_t * handle, unsigned int co
         {
           /* shift of 1 byte */
           extract <<= 8;
-          extract |= (unsigned int)p_handle->data.handle.f_handle[cpt];
+          extract |= (unsigned int)handle_ptr[cpt];
         }
       h = (857 * h ^ extract) % 715827883;
     }
