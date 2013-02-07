@@ -1428,7 +1428,7 @@ cache_inode_unpinnable(cache_entry_t *entry)
  */
 
 cache_inode_status_t
-cache_inode_dec_pin_ref(cache_entry_t *entry)
+cache_inode_dec_pin_ref(cache_entry_t *entry, unsigned char closefile)
 {
      pthread_mutex_lock(&entry->lru.mtx);
      assert(entry->lru.pin_refcnt);
@@ -1439,6 +1439,11 @@ cache_inode_dec_pin_ref(cache_entry_t *entry)
      entry->lru.pin_refcnt--;
      if (!entry->lru.pin_refcnt && (entry->lru.flags & LRU_ENTRY_PINNED)) {
           lru_move_entry(&entry->lru, 0, entry->lru.lane);
+          if (closefile == TRUE)
+          {
+              cache_inode_close(entry,
+                       CACHE_INODE_FLAG_REALLYCLOSE|CACHE_INODE_FLAG_NOT_PINNED);
+          }
      }
 
      /* Also release an LRU reference */
