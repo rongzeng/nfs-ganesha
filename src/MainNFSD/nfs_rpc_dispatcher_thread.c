@@ -984,6 +984,9 @@ nfs_rpc_queue_init(void)
     nfs_req_st.stallq.stalled = 0;
 }
 
+static uint32_t enqueued_reqs = 0;
+static uint32_t dequeued_reqs = 0;
+
 void
 nfs_rpc_enqueue_req(request_data_t *req)
 {
@@ -1031,8 +1034,12 @@ nfs_rpc_enqueue_req(request_data_t *req)
     ++(q->size);
     pthread_mutex_unlock(&q->we.mtx);
 
-    LogFullDebug(COMPONENT_DISPATCH, "enqueued req, q %p (%s %p:%p) size is %d",
-                 q, qpair->s, &qpair->producer, &qpair->consumer, q->size);
+    atomic_inc_uint32_t(&enqueued_reqs);
+
+    LogDebug(COMPONENT_DISPATCH, "enqueued req, q %p (%s %p:%p) "
+             "size is %d (enq %u deq %u)",
+             q, qpair->s, &qpair->producer, &qpair->consumer, q->size,
+             enqueued_reqs, dequeued_reqs);
 
     /* potentially wakeup some thread */
 
@@ -1168,8 +1175,10 @@ retry_deq:
 
         /* anything? */
         nfsreq = nfs_rpc_consume_req(qpair);
-        if (nfsreq)
+        if (nfsreq) {
+            atomic_inc_uint32_t(&dequeued_reqs);
             break;
+        }
 
         ++slot; slot = slot % 4;
 
@@ -1464,7 +1473,7 @@ thr_decode_rpc_request(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt)
             goto finish;
         }
 
-        if (!nfs_rpc_get_args(thr_ctx, nfsreq->r_u.nfs))
+        if (! nfs_rpc_get_args(thr_ctx, nfsreq->r_u.nfs))
             goto finish;
 
         /* update accounting */
@@ -1657,6 +1666,7 @@ nfs_rpc_getreq_ng(SVCXPRT *xprt /*, int chan_id */)
                  nreqs, nfs_param.core_param.dispatch_max_reqs);
         thread_delay_ms(5); /* don't busy-wait */
         (void) svc_rqst_rearm_events(xprt, SVC_RQST_FLAG_NONE);
+        SVC_RELEASE(xprt, SVC_RELEASE_FLAG_NONE);
         goto out;
     }
 
@@ -1669,6 +1679,7 @@ nfs_rpc_getreq_ng(SVCXPRT *xprt /*, int chan_id */)
                      __tirpc_dcounter, xprt);
         thread_delay_ms(5);
         (void) svc_rqst_rearm_events(xprt, SVC_RQST_FLAG_NONE);
+        SVC_RELEASE(xprt, SVC_RELEASE_FLAG_NONE);
         goto out;
     }
 
@@ -1681,6 +1692,7 @@ nfs_rpc_getreq_ng(SVCXPRT *xprt /*, int chan_id */)
         LogDebug(COMPONENT_DISPATCH, "stalled, bail");
         /* update accounting, clear decoding flag */
         gsh_xprt_clear_flag(xprt, XPRT_PRIVATE_FLAG_DECODING);
+        SVC_RELEASE(xprt, SVC_RELEASE_FLAG_NONE);
         goto out;
     }
 
