@@ -633,7 +633,8 @@ int nfs4_op_open(struct nfs_argop4 *op, compound_data_t *data,
                 res_OPEN4.status = NFS4ERR_EXIST; /* File already exists */
 
               cause2 = "GUARDED4";
-              cache_inode_put(pentry_lookup);
+              if (pentry_lookup)
+                cache_inode_put(pentry_lookup);
               goto out;
             }
 
