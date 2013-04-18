@@ -1323,9 +1323,11 @@ AuthenticateRequest(fridge_thr_contex_t *thr_ctx, nfs_request_data_t *nfsreq,
       LogInfo(COMPONENT_DISPATCH,
               "Could not authenticate request... rejecting with AUTH_STAT=%s",
               auth_stat2str(why));
-      DISP_SLOCK(xprt);
+      if (xprt->xp_type != XPRT_UDP)
+        DISP_SLOCK(xprt);
       svcerr_auth(xprt, req, why);
-      DISP_SUNLOCK(xprt);
+      if (xprt->xp_type != XPRT_UDP)
+        DISP_SUNLOCK(xprt);
       *no_dispatch = true;
       return why;
     }
@@ -1759,9 +1761,11 @@ is_rpc_call_valid(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt,
               if((nfs_param.core_param.core_options & CORE_OPTION_NFSV4) != 0)
                 hi_vers = NFS_V4;
               /* XXX move this, removing need for thr_ctx */
-              DISP_SLOCK(xprt);
+              if (xprt->xp_type != XPRT_UDP)
+                DISP_SLOCK(xprt);
               svcerr_progvers(xprt, req, lo_vers, hi_vers);  /* Bad NFS version */
-              DISP_SUNLOCK(xprt);
+              if (xprt->xp_type != XPRT_UDP)
+                DISP_SUNLOCK(xprt);
             }
           return false;
         }
@@ -1771,9 +1775,11 @@ is_rpc_call_valid(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt,
           /* xprt == NULL??? */
           if(xprt != NULL) {
               /* XXX move this, removing need for thr_ctx */
-              DISP_SLOCK(xprt);
+              if (xprt->xp_type != XPRT_UDP)
+                DISP_SLOCK(xprt);
               svcerr_noproc(xprt, req);
-              DISP_SUNLOCK(xprt);
+              if (xprt->xp_type != XPRT_UDP)
+                DISP_SUNLOCK(xprt);
           }
           return false;
         }
@@ -1800,9 +1806,11 @@ is_rpc_call_valid(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt,
             {
                 /* xprt == NULL??? */
                 if(xprt != NULL) {
-                    DISP_SLOCK(xprt);
+                    if (xprt->xp_type != XPRT_UDP)
+                      DISP_SLOCK(xprt);
                     svcerr_noproc(xprt, req);
-                    DISP_SUNLOCK(xprt);
+                    if (xprt->xp_type != XPRT_UDP)
+                      DISP_SUNLOCK(xprt);
                 }
               return false;
             }
@@ -1816,9 +1824,11 @@ is_rpc_call_valid(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt,
             {
                 /* xprt == NULL??? */
                 if(xprt != NULL) {
-                    DISP_SLOCK(xprt);
+                    if (xprt->xp_type != XPRT_UDP)
+                      DISP_SLOCK(xprt);
                     svcerr_noproc(xprt, req);
-                    DISP_SUNLOCK(xprt);
+                    if (xprt->xp_type != XPRT_UDP)
+                      DISP_SUNLOCK(xprt);
                 }
               return false;
             }
@@ -1835,9 +1845,11 @@ is_rpc_call_valid(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt,
           LogFullDebug(COMPONENT_DISPATCH,
                        "Invalid Mount Version #%d",
                        (int)req->rq_vers);
-          DISP_SLOCK(xprt);
+          if (xprt->xp_type != XPRT_UDP)
+            DISP_SLOCK(xprt);
           svcerr_progvers(xprt, req, lo_vers, hi_vers);
-          DISP_SUNLOCK(xprt);
+          if (xprt->xp_type != XPRT_UDP)
+            DISP_SUNLOCK(xprt);
         }
       return false;
     }
@@ -1857,9 +1869,11 @@ is_rpc_call_valid(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt,
                        (int)req->rq_vers);
           /* xprt == NULL??? */
           if(xprt != NULL) {
-              DISP_SLOCK(xprt);
+              if (xprt->xp_type != XPRT_UDP)
+                DISP_SLOCK(xprt);
               svcerr_progvers(xprt, req, NLM4_VERS, NLM4_VERS);
-              DISP_SUNLOCK(xprt);
+              if (xprt->xp_type != XPRT_UDP)
+                DISP_SUNLOCK(xprt);
           }
           return false;
         }
@@ -1867,9 +1881,11 @@ is_rpc_call_valid(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt,
         {
             /* xprt == NULL??? */
             if(xprt != NULL) {
-                DISP_SLOCK(xprt);
+                if (xprt->xp_type != XPRT_UDP)
+                  DISP_SLOCK(xprt);
                 svcerr_noproc(xprt, req);
-                DISP_SUNLOCK(xprt);
+                if (xprt->xp_type != XPRT_UDP)
+                  DISP_SUNLOCK(xprt);
             }
           return false;
         }
@@ -1890,9 +1906,11 @@ is_rpc_call_valid(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt,
                LogFullDebug(COMPONENT_DISPATCH,
                             "Invalid RQUOTA Version #%d",
                             (int)req->rq_vers);
-               DISP_SLOCK(xprt);
+               if (xprt->xp_type != XPRT_UDP)
+                 DISP_SLOCK(xprt);
                svcerr_progvers(xprt, req, RQUOTAVERS, EXT_RQUOTAVERS);
-               DISP_SUNLOCK(xprt);
+               if (xprt->xp_type != XPRT_UDP)
+                 DISP_SUNLOCK(xprt);
              }
            return false;
          }
@@ -1903,9 +1921,11 @@ is_rpc_call_valid(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt,
         {
             /* xprt == NULL??? */
             if(xprt != NULL) {
-                DISP_SLOCK(xprt);
+                if (xprt->xp_type != XPRT_UDP)
+                  DISP_SLOCK(xprt);
                 svcerr_noproc(xprt, req);
-                DISP_SUNLOCK(xprt);
+                if (xprt->xp_type != XPRT_UDP)
+                  DISP_SUNLOCK(xprt);
             }
           return false;
         }
@@ -1920,9 +1940,11 @@ is_rpc_call_valid(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt,
       LogFullDebug(COMPONENT_DISPATCH,
                    "Invalid Program number #%d",
                    (int)req->rq_prog);
-      DISP_SLOCK(xprt);
+      if (xprt->xp_type != XPRT_UDP)
+        DISP_SLOCK(xprt);
       svcerr_noprog(xprt, req);  /* This is no NFS, MOUNT program, exit... */
-      DISP_SUNLOCK(xprt);
+      if (xprt->xp_type != XPRT_UDP)
+        DISP_SUNLOCK(xprt);
     }
   return false;
 } /* is_rpc_call_valid */
@@ -1953,9 +1975,11 @@ nfs_rpc_get_args(fridge_thr_contex_t *thr_ctx, nfs_request_data_t *preqnfs)
                (int)req->rq_prog, (int)req->rq_vers, (int)req->rq_proc,
                req->rq_xid);
       /* XXX move this, removing need for thr_ctx */
-      DISP_SLOCK(xprt);
+      if (xprt->xp_type != XPRT_UDP)
+        DISP_SLOCK(xprt);
       svcerr_decode(xprt, req);
-      DISP_SUNLOCK(xprt);
+      if (xprt->xp_type != XPRT_UDP)
+        DISP_SUNLOCK(xprt);
       return false;
     }
 
