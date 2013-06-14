@@ -144,6 +144,7 @@ cache_inode_avl_insert_impl(cache_entry_t *entry, cache_inode_dir_entry_t *v,
         v_exist->entry_wkref = v->entry_wkref;
         avl_dirent_clear_deleted(entry, v_exist);
         v = v_exist;
+        v->itr_present = TRUE;
         code = 1; /* tell client to dispose v */
     } else {
         /* try to insert active */

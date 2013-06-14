@@ -753,6 +753,7 @@ cache_inode_readdir(cache_entry_t *directory,
 
           cache_entry_t *entry = NULL;
           cache_inode_status_t lookup_status = 0;
+          int once=0;
 
           dirent = avltree_container_of(dirent_node,
                                         cache_inode_dir_entry_t,
@@ -765,6 +766,7 @@ cache_inode_readdir(cache_entry_t *directory,
                /* Entry fell out of the cache, load it back in.
                 * Note that we don't restore the weakref...
                 */
+again:
                entry = cache_inode_lookup_weakref(directory,
                                                   &dirent->name,
                                                   context,
@@ -805,6 +807,14 @@ cache_inode_readdir(cache_entry_t *directory,
               cache_inode_lru_unref(entry, 0);
               if(*status == CACHE_INODE_FSAL_ESTALE)
                 {
+                  /* it is possible the file is removed via another node so */
+                  /* entry obtained from weakref is stale */
+                  /* we will try get it from underlying filesystem once */
+                  if (!once)
+                    {
+                      once=1; 
+                      goto again;
+                    }
                   LogDebug(COMPONENT_NFS_READDIR,
                            "cache_inode_lock_trust_attrs returned %s for %s - skipping entry",
                            cache_inode_err_str(*status),
