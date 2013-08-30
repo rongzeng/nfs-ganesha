@@ -179,15 +179,13 @@ nfs_req_timer_start(struct nfs_req_timer *t)
 }
 
 static inline void
-nfs_req_timer_stop(struct nfs_req_timer *t, struct timeval *time_queued)
+nfs_req_timer_stop(struct nfs_req_timer *t, msectimer_t time_queued)
 {
     t->timer_end = timer_get();
     t->timer_diff = t->timer_end - t->timer_start;
 #ifdef _USE_QUEUE_TIMER
     /* process time + queue time */
-    t->queue_timer_diff = t->timer_end - 
-	    (time_queued->tv_sec * MSEC_PER_SEC) -
-	    (time_queued->tv_usec * MSEC_PER_USEC);
+    t->queue_timer_diff = t->timer_end - time_queued;
 #endif
 }
 

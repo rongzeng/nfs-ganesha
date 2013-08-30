@@ -1456,6 +1456,9 @@ thr_decode_rpc_request(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt)
         goto done;
     }
     else {
+#ifdef _USE_QUEUE_TIMER
+        nfsreq->r_u.nfs->time_queued = timer_get();
+#endif 
         /* XXX so long as nfs_rpc_get_funcdesc calls is_rpc_call_valid
          * and fails if that call fails, there is no reason to call that
          * function again, below */

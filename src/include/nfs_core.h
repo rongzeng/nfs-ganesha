@@ -365,7 +365,7 @@ typedef struct nfs_request_data
   char cred_area[2 * MAX_AUTH_BYTES + RQCRED_SIZE];
   nfs_res_t *res_nfs;
   nfs_arg_t arg_nfs;
-  struct timeval time_queued; /* The time at which a request was added
+  msectimer_t time_queued; /* The time at which a request was added
                                * to the worker thread queue. */
 } nfs_request_data_t;
 

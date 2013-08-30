@@ -420,6 +420,7 @@ fi
 GA_ENABLE_AM_CONDITION([stat-exporter], [export GANESHA NFS request statistics with a dedicated thread and socket], [USE_STAT_EXPORTER])
 if test "$enable_stat_exporter" == "yes"; then
 	AC_DEFINE(_USE_STAT_EXPORTER,1,[export GANESHA NFS request statistics with a dedicated thread and socket])
+	AC_DEFINE(_USE_QUEUE_TIMER,1,[export GANESHA NFS request statistics with a dedicated thread and socket])
 fi
 
 

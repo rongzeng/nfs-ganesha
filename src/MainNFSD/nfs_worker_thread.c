@@ -1217,7 +1217,7 @@ req_error:
 #endif
 
   /* Perform statistics here */
-  nfs_req_timer_stop(&req_timer, &preqnfs->time_queued);
+  nfs_req_timer_stop(&req_timer, preqnfs->time_queued);
 
   /* process time */
   stat_type = (rc == NFS_REQ_OK) ? GANESHA_STAT_SUCCESS : GANESHA_STAT_DROP;
@@ -1263,7 +1263,7 @@ req_error:
 
 #ifdef _USE_QUEUE_TIMER
   LogFullDebug(COMPONENT_DISPATCH,
-               "Function %s xid=%u: await %llu.%.6llu",
+               "Function %s xid=%u: await %lu.%.6lu",
                pworker_data->funcdesc->funcname, req->rq_xid,
                req_timer.queue_timer_diff / MSEC_PER_SEC,
                req_timer.queue_timer_diff % MSEC_PER_SEC);
