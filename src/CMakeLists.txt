@@ -15,7 +15,7 @@ set(GANESHA_MINOR_VERSION 0)
 # Patch level is empty (blank) for mainline (master)
 # when starting a stable maintenance branch, this becomes ".N"
 # where N is monotonically increasing starting at 0. Remember to include the "." !!
-set(GANESHA_PATCH_LEVEL )
+set(GANESHA_PATCH_LEVEL 0)
 
 # Extra version is for naming development/RC.  It is blank in master/stable branches
 # so it can be available to end-users to name local variants/versions
