@@ -168,7 +168,8 @@ cache_inode_open(cache_entry_t *entry,
 	 * read/write */
 	if ((current_flags != FSAL_O_RDWR) && (current_flags != FSAL_O_CLOSED)
 	    && (current_flags != openflags)) {
-		fsal_status = obj_hdl->ops->close(obj_hdl);
+		fsal_status = obj_hdl->ops->open2(obj_hdl, req_ctx, openflags);
+//		fsal_status = obj_hdl->ops->close(obj_hdl);
 		if (FSAL_IS_ERROR(fsal_status)
 		    && (fsal_status.major != ERR_FSAL_NOT_OPENED)) {
 			status = cache_inode_error_convert(fsal_status);

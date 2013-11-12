@@ -57,8 +57,10 @@ fsal_status_t gpfs_open(struct fsal_obj_handle *obj_hdl,
 
 	myself = container_of(obj_hdl, struct gpfs_fsal_obj_handle, obj_handle);
 
+#if 0
 	assert(myself->u.file.fd == -1
 	       && myself->u.file.openflags == FSAL_O_CLOSED);
+#endif
 
 	status = GPFSFSAL_open(obj_hdl, opctx, openflags, &fd, NULL);
 	if (FSAL_IS_ERROR(status))
@@ -69,7 +71,37 @@ fsal_status_t gpfs_open(struct fsal_obj_handle *obj_hdl,
 
 	return fsalstat(fsal_error, retval);
 }
+fsal_status_t gpfs_open2(struct fsal_obj_handle *obj_hdl,
+			const struct req_op_context *opctx,
+			fsal_openflags_t openflags)
+{
+	struct gpfs_fsal_obj_handle *myself;
+	int fd;
+	fsal_status_t status;
+	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
+	int retval = 0;
+	int tmpfd;
 
+	myself = container_of(obj_hdl, struct gpfs_fsal_obj_handle, obj_handle);
+
+#if 0
+	assert(myself->u.file.fd == -1
+	       && myself->u.file.openflags == FSAL_O_CLOSED);
+#endif
+
+	tmpfd = myself->u.file.fd;
+	status = GPFSFSAL_open(obj_hdl, opctx, openflags, &fd, NULL);
+	if (FSAL_IS_ERROR(status))
+		return status;
+
+fprintf(stderr, "%s fd=%d closefd=%d\n", __func__, fd, tmpfd);
+	status = fsal_internal_close(tmpfd, NULL, 0);
+
+	myself->u.file.fd = fd;
+	myself->u.file.openflags = openflags;
+
+	return fsalstat(fsal_error, retval);
+}
 /* gpfs_status
  * Let the caller peek into the file's open/close state.
  */

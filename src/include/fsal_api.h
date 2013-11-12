@@ -1477,6 +1477,9 @@ struct fsal_obj_ops {
 	 fsal_status_t(*open) (struct fsal_obj_handle *obj_hdl,
 			       const struct req_op_context *opctx,
 			       fsal_openflags_t openflags);
+	 fsal_status_t(*open2) (struct fsal_obj_handle *obj_hdl,
+			       const struct req_op_context *opctx,
+			       fsal_openflags_t openflags);
 
 /**
  * @brief Return open status

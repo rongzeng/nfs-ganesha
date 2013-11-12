@@ -775,6 +775,7 @@ void gpfs_handle_ops_init(struct fsal_obj_ops *ops)
 	ops->rename = renamefile;
 	ops->unlink = file_unlink;
 	ops->open = gpfs_open;
+	ops->open2 = gpfs_open2;
 	ops->status = gpfs_status;
 	ops->read = gpfs_read;
 	ops->write = gpfs_write;

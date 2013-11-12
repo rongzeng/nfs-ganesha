@@ -122,6 +122,8 @@ fsal_status_t fsal_internal_close(int fd, void *owner, int cflags)
 
 	rc = gpfs_ganesha(OPENHANDLE_CLOSE_FILE, &carg);
 
+	fprintf(stderr, "OPENHANDLE_CLOSE_FILE returned: rc %d\n",
+		     rc);
 	LogFullDebug(COMPONENT_FSAL, "OPENHANDLE_CLOSE_FILE returned: rc %d",
 		     rc);
 
