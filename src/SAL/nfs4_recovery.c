@@ -40,6 +40,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#define MAXNAMEL 255
+
 char v4_recov_dir[PATH_MAX];
 char v4_old_dir[PATH_MAX];
 
@@ -186,7 +188,7 @@ nfs4_create_clid_name(nfs_client_record_t * cl_recp,
         struct sockaddr             *local_addr_ptr;
         sockaddr_t                   local_addr;
         socklen_t                    addr_len;
-        struct display_buffer       dspbuf = {PATH_MAX, cidstr, cidstr};
+        struct display_buffer       dspbuf = {sizeof(cidstr), cidstr, cidstr};
 
         /* hold both long form clientid and IP */
         pclientid->cid_recov_dir = gsh_malloc(PATH_MAX);
@@ -194,9 +196,8 @@ nfs4_create_clid_name(nfs_client_record_t * cl_recp,
                 LogEvent(COMPONENT_CLIENTID, "Mem_Alloc FAILED");
                 return;
         }
-        convert_opaque_value_max_for_dir(&dspbuf, cl_recp->cr_client_val, cl_recp->cr_client_val_len, PATH_MAX);
-
-        (void) snprintf(pclientid->cid_recov_dir, PATH_MAX, "%s-%s",
+        if (convert_opaque_value_max_for_dir(&dspbuf, cl_recp->cr_client_val, cl_recp->cr_client_val_len, PATH_MAX) > 0)
+                (void) snprintf(pclientid->cid_recov_dir, PATH_MAX, "%s-%s",
                         data->pworker->hostaddr_str, cidstr);
 
         local_addr_ptr = (struct sockaddr *)&local_addr;
@@ -257,7 +258,7 @@ nfs4_add_clid(nfs_client_id_t *pclientid)
                 /* if the (remaining) clientid is shorter than 255 */
                 /* create the last level of dir and break out */
                 int len = strlen(&pclientid->cid_recov_dir[position]);
-                if (len <= 255) {
+                if (len <= MAXNAMEL) {
                         strcat(path, "/");
                         strncat(path, &pclientid->cid_recov_dir[position], len);
                         err = mkdir(path, 0700);
@@ -265,13 +266,13 @@ nfs4_add_clid(nfs_client_id_t *pclientid)
                 }
                 /* if (remaining) clientid is longer than 255, */
                 /* get the next 255 bytes and create a subdir */
-                strncpy(segment, &pclientid->cid_recov_dir[position], 255);
+                strncpy(segment, &pclientid->cid_recov_dir[position], MAXNAMEL);
                 strcat(path, "/");
-                strncat(path, segment, 255);
+                strncat(path, segment, MAXNAMEL);
                 err = mkdir(path, 0700);
                 if (err == -1 && errno != EEXIST)
                         break;
-                position += 255;
+                position += MAXNAMEL;
         }
 
         if (err == -1 && errno != EEXIST) {
@@ -301,7 +302,7 @@ nfs4_rm_clid(char *recov_dir, char *parent_path, int position)
         if (position == len)
                 return;
 
-        strncpy(segment, &recov_dir[position], 255); 
+        strncpy(segment, &recov_dir[position], MAXNAMEL); 
         segment_len = strlen(segment);
 
         (void) snprintf(path, sizeof(path), "%s/%s",
@@ -432,10 +433,10 @@ nfs4_read_recov_clids(DIR *dp, char *parent_path, char *clid_str, char *tgtdir, 
                         {
                                 LogEvent(COMPONENT_CLIENTID, "opendir %s failed errno=%d", dentp->d_name, errno);
                         }
-			if (tgtdir)
-                        	rc = nfs4_read_recov_clids(subdp, path, build_clid, new_path, takeover);
-			else
-                        	rc = nfs4_read_recov_clids(subdp, path, build_clid, NULL, takeover);
+                        if (tgtdir)
+                                rc = nfs4_read_recov_clids(subdp, path, build_clid, new_path, takeover);
+                        else
+                                rc = nfs4_read_recov_clids(subdp, path, build_clid, NULL, takeover);
 
                         /* after recursion, if the subdir has no non-hidden directory */
                         /* this is the end of this clientid str. Add the clientstr to the list. */
@@ -447,15 +448,15 @@ nfs4_read_recov_clids(DIR *dp, char *parent_path, char *clid_str, char *tgtdir, 
                                 ptr2 = strchr(ptr, ':');
                                 if (ptr2 == NULL)
                                         return -1; 
-				len = ptr2-ptr-1;
-				if (len >= 9)
-					return -1;
-				strncpy(temp, ptr+1, len);
-				temp[len] = 0;
-				cid_len = atoi(temp);
-				len = strlen(ptr2);
-				if ((len == (cid_len+2)) && (ptr2[len-1] == ')'))
-				{	
+                                len = ptr2-ptr-1;
+                                if (len >= 9)
+                                        return -1;
+                                strncpy(temp, ptr+1, len);
+                                temp[len] = 0;
+                                cid_len = atoi(temp);
+                                len = strlen(ptr2);
+                                if ((len == (cid_len+2)) && (ptr2[len-1] == ')'))
+                                {
                                 	new_ent = gsh_malloc(sizeof(clid_entry_t));
                                 	if (new_ent == NULL) {
                                         	LogEvent(COMPONENT_CLIENTID,
