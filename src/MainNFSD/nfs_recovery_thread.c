@@ -231,9 +231,6 @@ char workpath[PATH_MAX];
                         cp2++;
                 *cp2 = '\0';
                 t_this_entry = (time_t) atol(cp);
-                if (t_this_entry < t_after) {
-                        continue;
-                }
                 if ( id > 0 ) {
                         /* id is the 3rd entry */
                         cp2++;
@@ -243,17 +240,28 @@ char workpath[PATH_MAX];
                         *cp2 = '\0';
                         i = atoi(cp);
                         if ( i == id ) {
-                                icnt++;
-                                t_after = t_this_entry + 1;
-                                if (rel) {
+                                /* if there are release ip events with the same timestamp */
+                                /* as the last updated event (must be from a takeip). */
+                                /* Or much more recent release ip events than last event */                        
+                                if ((t_this_entry >= (t_after - 1)) && rel)
+                                {
                                         /* IP is the 4th entry */
                                         cp2++;
                                         release_ip(cp2, notdone);
                                         /* we are done with v3 */
                                         notdone = 0;
+                                        /* note we will only increment ipcount for the case of releaseip */
+                                        /* so if only takeip exists, it will be for the 2nd check_for_id call */
+                                        icnt++;
                                 }
+                                if (t_this_entry < t_after)
+                                        continue;
+                                t_after = t_this_entry + 1;
                         }
                 } else {
+                        if (t_this_entry < t_after) 
+                                continue;
+
                         t_after = t_this_entry + 1;
                         icnt = 1;
                         break;
