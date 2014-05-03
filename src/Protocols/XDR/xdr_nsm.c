@@ -60,3 +60,15 @@ bool xdr_mon(XDR * xdrs, mon * objp)
 		return false;
 	return true;
 }
+
+bool xdr_notify (XDR *xdrs, notify *objp)
+{
+	register int32_t *buf;
+
+	if (!xdr_string(xdrs, &objp->my_name, SM_MAXSTRLEN))
+		return FALSE;
+	if (!xdr_int(xdrs, &objp->state))
+		return FALSE;
+	return TRUE;
+}
+
