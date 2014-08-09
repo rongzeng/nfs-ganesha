@@ -969,10 +969,11 @@ cache_inode_check_trust(cache_entry_t *entry,
           }
      } else if ((entry->type == DIRECTORY) &&
                 (oldmtime < entry->attributes.mtime.seconds)) {
-
+/*
           atomic_clear_uint32_t_bits(&entry->flags, CACHE_INODE_TRUST_CONTENT |
                                      CACHE_INODE_DIR_POPULATED);
 
+*/
           if (cache_inode_invalidate_all_cached_dirent(entry, &status)
               != CACHE_INODE_SUCCESS) {
                LogCrit(COMPONENT_CACHE_INODE,

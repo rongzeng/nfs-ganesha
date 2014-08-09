@@ -125,6 +125,16 @@ cache_inode_avl_insert_impl(cache_entry_t *entry, cache_inode_dir_entry_t **v,
     cache_inode_dir_entry_t *v_exist = NULL;
     struct avltree *t = &entry->object.dir.avl.t;
     struct avltree *c = &entry->object.dir.avl.c;
+    static uint64_t tsize = 0;
+    static uint64_t csize = 0;
+
+    if ((t->size - tsize) > 1000 || (c->size - csize) > 1000) {
+      LogCrit(COMPONENT_CACHE_INODE,
+                  "t->size:%d t->hight:%d c->size:%d c->hight:%d",
+                   t->size, t->hight, c->size, c->hight);
+      tsize = t->size;
+      csize = c->size;
+    }
 
     /* first check for a previously-deleted entry */
     node = avltree_inline_lookup(&(*v)->node_hk, c);

@@ -133,10 +133,13 @@ cache_inode_invalidate(cache_inode_fsal_data_t *fsal_data,
         really ought to modify mtime, at least.) */
 
      if ((flags & CACHE_INODE_INVALIDATE_CLEARBITS) != 0)
+     {
        atomic_clear_uint32_t_bits(&entry->flags,
                                   CACHE_INODE_TRUST_ATTRS |
                                   CACHE_INODE_DIR_POPULATED |
                                   CACHE_INODE_TRUST_CONTENT);
+       cache_inode_release_dirents(entry, CACHE_INODE_AVL_BOTH);
+     }
 
      /* The main reason for holding the lock at this point is so we
         don't clear the trust bits while someone is populating the
