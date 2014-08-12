@@ -585,6 +585,9 @@ bail:
   return *status;
 }                               /* cache_inode_readdir_populate */
 
+cache_entry_t *test_directory=NULL;
+fsal_op_context_t *test_context=NULL;
+
 /**
  *
  * @brief Reads a directory
@@ -700,6 +703,9 @@ cache_inode_readdir(cache_entry_t *directory,
            (directory->flags & CACHE_INODE_DIR_POPULATED))) {
           PTHREAD_RWLOCK_UNLOCK(&directory->content_lock);
           PTHREAD_RWLOCK_WRLOCK(&directory->content_lock);
+	
+	  test_directory = directory;
+          test_context = context;
           if (cache_inode_readdir_populate(directory,
                                            context,
                                            status)

@@ -130,8 +130,8 @@ cache_inode_avl_insert_impl(cache_entry_t *entry, cache_inode_dir_entry_t **v,
 
     if ((t->size - tsize) > 1000 || (c->size - csize) > 1000) {
       LogCrit(COMPONENT_CACHE_INODE,
-                  "t->size:%d t->hight:%d c->size:%d c->hight:%d",
-                   t->size, t->hight, c->size, c->hight);
+                  "t->size:%ld t->hight:%d c->size:%ld c->hight:%d",
+                   t->size, t->height, c->size, c->height);
       tsize = t->size;
       csize = c->size;
     }

@@ -133,6 +133,37 @@ static int reap_hash_table(hash_table_t * ht_reap)
   return count;
 }
 
+extern cache_entry_t *test_directory;
+extern fsal_op_context_t *test_context;
+
+void *test_thread(void *arg)
+{
+    cache_inode_status_t status;
+
+fprintf(stderr, "%s\n", __func__);
+    while(1)
+    {
+fprintf(stderr, "%s loop %p\n", __func__, test_directory);
+      if(test_directory)
+      {
+          PTHREAD_RWLOCK_WRLOCK(&test_directory->content_lock);
+          
+          if (cache_inode_readdir_populate(test_directory,
+					   test_context,
+					   &status)
+              != CACHE_INODE_SUCCESS) {
+              LogFatal(COMPONENT_CACHE_INODE, "readdir_populate failed in test_thread");
+          }
+				        
+fprintf(stderr, "%s alloc %p\n", __func__, test_directory);
+          cache_inode_release_dirents(test_directory, CACHE_INODE_AVL_BOTH);
+          PTHREAD_RWLOCK_UNLOCK(&test_directory->content_lock);
+      }
+      else
+	sleep(1);
+    }
+}
+
 void *reaper_thread(void *UnusedArg)
 {
   int    old_state_cleaned = 0;

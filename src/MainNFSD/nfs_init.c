@@ -112,6 +112,7 @@ pthread_t stat_exporter_thrid;
 pthread_t admin_thrid;
 pthread_t sigmgr_thrid;
 pthread_t reaper_thrid;
+pthread_t test_thrid;
 #ifdef SONAS
 pthread_t recovery_thrid;
 #endif
@@ -1465,6 +1466,16 @@ static void nfs_Start_threads(void)
     }
   LogEvent(COMPONENT_THREAD,
            "reaper thread was started successfully");
+
+  /* Starting the reaper thread */
+  if((rc =
+      pthread_create(&test_thrid, &attr_thr, test_thread, NULL)) != 0)
+    {
+      LogFatal(COMPONENT_THREAD,
+               "Could not create test_thread, error = %d (%s)",
+               errno, strerror(errno));
+    }
+
 
 #ifdef SONAS
   /* Starting the recovery thread */
