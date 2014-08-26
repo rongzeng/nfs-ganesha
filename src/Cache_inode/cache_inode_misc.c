@@ -827,10 +827,18 @@ void cache_inode_release_dirents(cache_entry_t *entry,
     struct avltree_node *next_dirent_node = NULL;
     struct avltree *tree = NULL;
     cache_inode_dir_entry_t *dirent = NULL;
+    int trim = FALSE;
 
     /* Won't see this */
     if (entry->type != DIRECTORY)
         return;
+
+    if (which == CACHE_INODE_AVL_BOTH)
+    {  
+
+       if ( entry->object.dir.avl.t.size >= (cache_inode_gc_policy.entries_hwmark / 10))
+          trim = TRUE;
+    }
 
     switch (which)
     {
@@ -874,6 +882,13 @@ void cache_inode_release_dirents(cache_entry_t *entry,
                                           CACHE_INODE_DIR_POPULATED));
           }
     }
+
+    if (which == CACHE_INODE_AVL_BOTH)
+    {
+          if (trim == TRUE)
+              malloc_trim(0);
+    }
+
 }
 
 /**
